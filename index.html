@@ -3,106 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>垃圾溢满监测</title>
+    <title>垃圾监测终端</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
-        body {
-            font-family: sans-serif;
-            background-color: #f4f4f4;
-            color: #333;
-            text-align: center;
-            padding: 20px;
-            transition: background-color 0.5s;
-        }
-        .card {
-            background: white;
-            border-radius: 15px;
-            padding: 15px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        #status-box {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 8px;
-            background: #e0e0e0;
-            color: #555;
-        }
-        #cam-image {
-            width: 100%;
-            border-radius: 10px;
-            background: #000;
-            min-height: 200px;
-        }
-        .time-label {
-            margin-top: 10px;
-            color: #888;
-            font-size: 12px;
-        }
-        /* 报警样式 */
-        .alert-mode body { background-color: #ffcccc; }
-        .alert-mode #status-box { background-color: #ff4444; color: white; }
+        body { font-family: sans-serif; background: #eee; text-align: center; padding: 20px; transition: background 0.5s; }
+        .card { background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        #status-box { padding: 10px; margin-bottom: 10px; border-radius: 5px; font-weight: bold; color: white; background: #999; }
+        #cam-image { width: 100%; background: #000; min-height: 200px; border-radius: 10px; display: block; object-fit: contain; }
+        .info { margin-top: 10px; font-size: 12px; color: #666; }
+        .alert { background: #ff4444 !important; }
+        .normal { background: #4CAF50 !important; }
+        .loading { background: #2196F3 !important; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <div id="status-box">正在连接...</div>
-        <img id="cam-image" src="" alt="等待数据传输..." />
-        <div class="time-label">最后更新: <span id="time-val">--</span></div>
+        <div id="status-box" class="loading">正在连接...</div>
+        
+        <!-- 这里就是显示照片的地方 -->
+        <img id="cam-image" src="" alt="等待树莓派照片..." />
+        
+        <div class="info">
+            设备ID: 2428510019ljz<br>
+            最后更新: <span id="last-time">--</span>
+        </div>
     </div>
 
     <script>
-        // === 配置需与Python一致 ===
+        // ✅ Topic 已修改为您指定的
+        const TOPIC = "2428510019ljz";
+        
         const BROKER = "broker.emqx.io";
-        const PORT = 8083;
-        const TOPIC = "yolo_project/live_image";
+        const PORT = 8084; // SSL
 
-        const client = new Paho.MQTT.Client(BROKER, PORT, "web_" + Math.random());
         const statusBox = document.getElementById("status-box");
         const img = document.getElementById("cam-image");
-        const timeVal = document.getElementById("time-val");
+        const timeLabel = document.getElementById("last-time");
+
+        const client = new Paho.MQTT.Client(BROKER, PORT, "web_" + Math.random().toString(16).substr(2, 8));
 
         function onConnect() {
             console.log("Connected");
+            statusBox.innerText = "✅ 已连接 - 等待照片";
+            statusBox.className = "normal";
             client.subscribe(TOPIC);
-            statusBox.innerText = "✅ 设备在线 (等待数据)";
-            statusBox.style.background = "#4CAF50";
-            statusBox.style.color = "white";
+        }
+
+        function onFail(e) {
+            statusBox.innerText = "❌ 连接失败: " + e.errorMessage;
+            statusBox.className = "alert";
+        }
+
+        function onConnectionLost(e) {
+            if (e.errorCode !== 0) {
+                statusBox.innerText = "⚠️ 连接断开，重连中...";
+                statusBox.className = "loading";
+            }
         }
 
         function onMessageArrived(message) {
             try {
                 const payload = JSON.parse(message.payloadString);
                 
-                // 1. 更新图片
+                // 1. 把接收到的 Base64 显示为图片
                 img.src = "data:image/jpeg;base64," + payload.image;
                 
                 // 2. 更新时间
                 const date = new Date(payload.timestamp * 1000);
-                timeVal.innerText = date.toLocaleTimeString();
+                timeLabel.innerText = date.toLocaleTimeString();
 
-                // 3. 判断是否溢满
+                // 3. 状态判断
                 if (payload.status.includes("WARNING")) {
-                    // 报警模式
-                    statusBox.innerText = "⚠️ 垃圾溢满报警！";
-                    document.body.style.backgroundColor = "#ffcccc"; // 背景变红
-                    statusBox.style.background = "#ff4444";
+                    statusBox.innerText = "🔥 垃圾溢满报警！";
+                    statusBox.className = "alert";
+                    document.body.style.background = "#ffcccc";
                 } else {
-                    // 正常模式
-                    statusBox.innerText = "🟢 状态正常 (30s刷新)";
-                    document.body.style.backgroundColor = "#f4f4f4"; // 背景恢复
-                    statusBox.style.background = "#4CAF50";
+                    statusBox.innerText = "🟢 监测正常";
+                    statusBox.className = "normal";
+                    document.body.style.background = "#eee";
                 }
-
             } catch (e) { console.error(e); }
         }
 
+        client.onConnectionLost = onConnectionLost;
         client.onMessageArrived = onMessageArrived;
-        client.connect({ onSuccess: onConnect, useSSL: false });
+
+        client.connect({
+            useSSL: true,
+            onSuccess: onConnect,
+            onFailure: onFail,
+            keepAliveInterval: 30
+        });
 
     </script>
 </body>
