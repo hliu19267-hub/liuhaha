@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>垃圾监测终端</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+        }
+        header {
+            width: 100%;
+            padding: 15px 0;
+            background-color: #2d2d2d;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            position: fixed;
+            top: 0;
+            z-index: 100;
+        }
+        h1 { margin: 0; font-size: 18px; font-weight: 500; }
+        .status-dot {
+            height: 10px; width: 10px;
+            background-color: #555;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .container {
+            margin-top: 70px;
+            width: 95%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .card {
+            background: #2d2d2d;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #video-view {
+            width: 100%;
+            min-height: 240px;
+            background: #000;
+            display: block;
+        }
+        .info-bar {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            background: #333;
+        }
+        .stat-item { text-align: center; }
+        .stat-label { font-size: 12px; color: #aaa; }
+        .stat-val { font-size: 18px; font-weight: bold; color: #4CAF50; }
+        .btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1><span id="dot" class="status-dot"></span>垃圾溢满监测系统</h1>
+    </header>
+
+    <div class="container">
+        <!-- 视频卡片 -->
+        <div class="card">
+            <img id="video-view" src="" alt="等待设备信号...">
+            <div class="info-bar">
+                <div class="stat-item">
+                    <div class="stat-label">设备FPS</div>
+                    <div class="stat-val" id="fps">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">网络状态</div>
+                    <div class="stat-val" id="net-status" style="color:#aaa">未连接</div>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn" onclick="location.reload()">刷新连接</button>
+    </div>
+
+    <script>
+        // === 配置需与Python一致 ===
+        const BROKER = "broker.emqx.io";
+        const PORT = 8083; // WebSocket 端口
+        const TOPIC = "yolo_project/live_image";
+
+        const clientID = "phone_" + Math.random().toString(16).substr(2, 8);
+        const client = new Paho.MQTT.Client(BROKER, PORT, clientID);
+
+        const dot = document.getElementById("dot");
+        const statusText = document.getElementById("net-status");
+        const img = document.getElementById("video-view");
+        const fpsText = document.getElementById("fps");
+
+        function onConnect() {
+            dot.style.backgroundColor = "#4CAF50";
+            statusText.innerText = "在线";
+            statusText.style.color = "#4CAF50";
+            client.subscribe(TOPIC);
+        }
+
+        function onConnectionLost(responseObject) {
+            dot.style.backgroundColor = "#f44336";
+            statusText.innerText = "断开";
+            statusText.style.color = "#f44336";
+        }
+
+        function onMessageArrived(message) {
+            try {
+                const payload = JSON.parse(message.payloadString);
+                img.src = "data:image/jpeg;base64," + payload.image;
+                fpsText.innerText = payload.fps;
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        client.onConnectionLost = onConnectionLost;
+        client.onMessageArrived = onMessageArrived;
+
+        // 开始连接
+        statusText.innerText = "连接中...";
+        client.connect({
+            onSuccess: onConnect,
+            useSSL: false,
+            keepAliveInterval: 30
+        });
+    </script>
+</body>
+</html>
