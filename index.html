@@ -6,93 +6,97 @@
     <title>垃圾监测终端</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #eee; text-align: center; padding: 20px; transition: background 0.5s; }
-        .card { background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        #status-box { padding: 10px; margin-bottom: 10px; border-radius: 5px; font-weight: bold; color: white; background: #999; }
-        #cam-image { width: 100%; background: #000; min-height: 200px; border-radius: 10px; display: block; object-fit: contain; }
-        .info { margin-top: 10px; font-size: 12px; color: #666; }
-        .alert { background: #ff4444 !important; }
-        .normal { background: #4CAF50 !important; }
-        .loading { background: #2196F3 !important; }
+        body { font-family: sans-serif; background: #222; color: white; text-align: center; padding: 10px; margin: 0; }
+        h3 { margin: 10px 0; font-size: 16px; color: #aaa; }
+        
+        /* 实时画面区域 */
+        .live-card { background: #333; padding: 10px; border-radius: 10px; margin-bottom: 20px; }
+        #stream-img { width: 100%; background: #000; min-height: 200px; border-radius: 5px; object-fit: contain; }
+        .live-tag { color: #0f0; font-size: 12px; font-weight: bold; margin-bottom: 5px; display: block;}
+
+        /* 报警区域 */
+        #alert-section { display: none; background: #5a1a1a; padding: 10px; border-radius: 10px; border: 2px solid #ff4444; }
+        #alert-img { width: 100%; border-radius: 5px; filter: grayscale(20%); }
+        .alert-title { color: #ff4444; font-weight: bold; margin-bottom: 5px; font-size: 18px; }
+        .alert-time { font-size: 12px; color: #ccc; margin-top: 5px; }
+
+        .status { font-size: 12px; color: #666; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <div id="status-box" class="loading">正在连接...</div>
-        
-        <!-- 这里就是显示照片的地方 -->
-        <img id="cam-image" src="" alt="等待树莓派照片..." />
-        
-        <div class="info">
-            设备ID: 2428510019ljz<br>
-            最后更新: <span id="last-time">--</span>
-        </div>
+    <!-- 1. 实时画面 -->
+    <div class="live-card">
+        <span class="live-tag">● 实时监控画面</span>
+        <img id="stream-img" src="" alt="等待信号..." />
     </div>
 
+    <!-- 2. 溢出报警图 (平时隐藏) -->
+    <div id="alert-section">
+        <div class="alert-title">⚠️ 检测到垃圾溢满</div>
+        <img id="alert-img" src="" />
+        <div class="alert-time" id="alert-time">--</div>
+    </div>
+
+    <div class="status" id="conn-status">正在连接服务器...</div>
+
     <script>
-        // ✅ Topic 已修改为您指定的
-        const TOPIC = "2428510019ljz";
+        // ✅ 基础 Topic
+        const BASE_TOPIC = "2428510019ljz";
         
         const BROKER = "broker.emqx.io";
         const PORT = 8084; // SSL
 
-        const statusBox = document.getElementById("status-box");
-        const img = document.getElementById("cam-image");
-        const timeLabel = document.getElementById("last-time");
+        const streamImg = document.getElementById("stream-img");
+        const alertSection = document.getElementById("alert-section");
+        const alertImg = document.getElementById("alert-img");
+        const alertTime = document.getElementById("alert-time");
+        const connStatus = document.getElementById("conn-status");
 
         const client = new Paho.MQTT.Client(BROKER, PORT, "web_" + Math.random().toString(16).substr(2, 8));
 
         function onConnect() {
             console.log("Connected");
-            statusBox.innerText = "✅ 已连接 - 等待照片";
-            statusBox.className = "normal";
-            client.subscribe(TOPIC);
-        }
-
-        function onFail(e) {
-            statusBox.innerText = "❌ 连接失败: " + e.errorMessage;
-            statusBox.className = "alert";
-        }
-
-        function onConnectionLost(e) {
-            if (e.errorCode !== 0) {
-                statusBox.innerText = "⚠️ 连接断开，重连中...";
-                statusBox.className = "loading";
-            }
+            connStatus.innerText = "✅ 服务器已连接";
+            // 订阅两个 Topic：一个流，一个报警
+            client.subscribe(BASE_TOPIC + "/stream");
+            client.subscribe(BASE_TOPIC + "/alert");
         }
 
         function onMessageArrived(message) {
             try {
+                const topic = message.destinationName;
                 const payload = JSON.parse(message.payloadString);
-                
-                // 1. 把接收到的 Base64 显示为图片
-                img.src = "data:image/jpeg;base64," + payload.image;
-                
-                // 2. 更新时间
-                const date = new Date(payload.timestamp * 1000);
-                timeLabel.innerText = date.toLocaleTimeString();
 
-                // 3. 状态判断
-                if (payload.status.includes("WARNING")) {
-                    statusBox.innerText = "🔥 垃圾溢满报警！";
-                    statusBox.className = "alert";
-                    document.body.style.background = "#ffcccc";
-                } else {
-                    statusBox.innerText = "🟢 监测正常";
-                    statusBox.className = "normal";
-                    document.body.style.background = "#eee";
+                // 判断是实时流 还是 报警
+                if (topic.includes("/stream")) {
+                    // 更新上面那张大图
+                    streamImg.src = "data:image/jpeg;base64," + payload.image;
+                } 
+                else if (topic.includes("/alert")) {
+                    // 显示下面那个红色的报警框
+                    alertSection.style.display = "block";
+                    alertImg.src = "data:image/jpeg;base64," + payload.image;
+                    
+                    const date = new Date(payload.timestamp * 1000);
+                    alertTime.innerText = "报警时间: " + date.toLocaleTimeString();
+                    
+                    // 震动一下手机提示 (如果支持)
+                    if (navigator.vibrate) navigator.vibrate(500);
                 }
+
             } catch (e) { console.error(e); }
         }
 
-        client.onConnectionLost = onConnectionLost;
+        client.onConnectionLost = (e) => {
+            connStatus.innerText = "❌ 断开连接，重连中...";
+        };
+
         client.onMessageArrived = onMessageArrived;
 
         client.connect({
             useSSL: true,
             onSuccess: onConnect,
-            onFailure: onFail,
             keepAliveInterval: 30
         });
 
