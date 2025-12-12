@@ -3,64 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>垃圾监测终端</title>
+    <title>智慧城市·垃圾监测系统</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #222; color: white; text-align: center; padding: 10px; margin: 0; }
-        h3 { margin: 10px 0; font-size: 16px; color: #aaa; }
+        /* 全局样式 - 暗黑科技风 */
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #1c1c1c 0%, #2d3436 100%);
+            color: #ffffff;
+            min-height: 100vh;
+        }
+
+        /* 顶部标题栏 */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .title { font-size: 18px; font-weight: 600; letter-spacing: 1px; }
         
-        /* 实时画面区域 */
-        .live-card { background: #333; padding: 10px; border-radius: 10px; margin-bottom: 20px; }
-        #stream-img { width: 100%; background: #000; min-height: 200px; border-radius: 5px; object-fit: contain; }
-        .live-tag { color: #0f0; font-size: 12px; font-weight: bold; margin-bottom: 5px; display: block;}
+        /* 状态呼吸灯 */
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+            color: #aaa;
+        }
+        .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background-color: #555;
+            box-shadow: 0 0 5px #555;
+        }
+        .dot.active {
+            background-color: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* 卡片容器 */
+        .card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        /* 实时画面 */
+        .section-title {
+            font-size: 14px;
+            color: #00cec9;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-left: 3px solid #00cec9;
+            padding-left: 10px;
+        }
+        
+        #stream-img {
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 8px;
+            object-fit: contain;
+            display: block;
+        }
 
         /* 报警区域 */
-        #alert-section { display: none; background: #5a1a1a; padding: 10px; border-radius: 10px; border: 2px solid #ff4444; }
-        #alert-img { width: 100%; border-radius: 5px; filter: grayscale(20%); }
-        .alert-title { color: #ff4444; font-weight: bold; margin-bottom: 5px; font-size: 18px; }
-        .alert-time { font-size: 12px; color: #ccc; margin-top: 5px; }
+        #alert-card { display: none; border: 1px solid #d63031; background: rgba(214, 48, 49, 0.1); }
+        .alert-header { color: #ff7675; font-weight: bold; display: flex; align-items: center; margin-bottom: 10px; }
+        .alert-icon { margin-right: 8px; font-size: 20px; }
+        #alert-img { width: 100%; border-radius: 8px; filter: contrast(110%); }
+        .alert-meta {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #fab1a0;
+            text-align: right;
+        }
 
-        .status { font-size: 12px; color: #666; margin-top: 20px; }
+        /* 底部信息 */
+        .footer { text-align: center; font-size: 12px; color: #636e72; margin-top: 30px; }
     </style>
 </head>
 <body>
 
-    <!-- 1. 实时画面 -->
-    <div class="live-card">
-        <span class="live-tag">● 实时监控画面</span>
-        <img id="stream-img" src="" alt="等待信号..." />
+    <div class="header">
+        <div class="title">垃圾溢满监测终端</div>
+        <div class="status-indicator">
+            <div id="status-dot" class="dot"></div>
+            <span id="status-text">离线</span>
+        </div>
     </div>
 
-    <!-- 2. 溢出报警图 (平时隐藏) -->
-    <div id="alert-section">
-        <div class="alert-title">⚠️ 检测到垃圾溢满</div>
+    <!-- 实时监控区 -->
+    <div class="card">
+        <div class="section-title">实时监控 (Live)</div>
+        <img id="stream-img" src="" alt="正在建立安全连接..." />
+    </div>
+
+    <!-- 报警记录区 (平时隐藏) -->
+    <div class="card" id="alert-card">
+        <div class="alert-header">
+            <span class="alert-icon">⚠️</span>
+            <span>检测到垃圾溢满</span>
+        </div>
         <img id="alert-img" src="" />
-        <div class="alert-time" id="alert-time">--</div>
+        <div class="alert-meta">
+            记录时间: <span id="alert-time">--</span>
+        </div>
     </div>
 
-    <div class="status" id="conn-status">正在连接服务器...</div>
+    <div class="footer">系统 ID: 2428510019ljz | Powered by YOLO & MQTT</div>
 
     <script>
-        // ✅ 基础 Topic
         const BASE_TOPIC = "2428510019ljz";
-        
         const BROKER = "broker.emqx.io";
-        const PORT = 8084; // SSL
+        const PORT = 8084; // SSL 加密端口
 
+        const dot = document.getElementById("status-dot");
+        const statusText = document.getElementById("status-text");
         const streamImg = document.getElementById("stream-img");
-        const alertSection = document.getElementById("alert-section");
+        const alertCard = document.getElementById("alert-card");
         const alertImg = document.getElementById("alert-img");
         const alertTime = document.getElementById("alert-time");
-        const connStatus = document.getElementById("conn-status");
 
+        // 随机客户端ID
         const client = new Paho.MQTT.Client(BROKER, PORT, "web_" + Math.random().toString(16).substr(2, 8));
 
         function onConnect() {
             console.log("Connected");
-            connStatus.innerText = "✅ 服务器已连接";
-            // 订阅两个 Topic：一个流，一个报警
+            dot.classList.add("active");
+            statusText.innerText = "在线运行中";
+            statusText.style.color = "#00ff88";
+            
+            // 订阅两个频道
             client.subscribe(BASE_TOPIC + "/stream");
             client.subscribe(BASE_TOPIC + "/alert");
+        }
+
+        function onFail(e) {
+            console.log(e);
+            dot.classList.remove("active");
+            dot.style.backgroundColor = "#ff4444";
+            statusText.innerText = "连接失败";
+            statusText.style.color = "#ff4444";
+        }
+
+        function onConnectionLost(e) {
+            if (e.errorCode !== 0) {
+                dot.classList.remove("active");
+                statusText.innerText = "断线重连中...";
+                statusText.style.color = "#fab1a0";
+            }
         }
 
         function onMessageArrived(message) {
@@ -68,35 +175,32 @@
                 const topic = message.destinationName;
                 const payload = JSON.parse(message.payloadString);
 
-                // 判断是实时流 还是 报警
                 if (topic.includes("/stream")) {
-                    // 更新上面那张大图
+                    // 更新实时画面
                     streamImg.src = "data:image/jpeg;base64," + payload.image;
                 } 
                 else if (topic.includes("/alert")) {
-                    // 显示下面那个红色的报警框
-                    alertSection.style.display = "block";
+                    // 触发报警卡片
+                    alertCard.style.display = "block";
                     alertImg.src = "data:image/jpeg;base64," + payload.image;
                     
                     const date = new Date(payload.timestamp * 1000);
-                    alertTime.innerText = "报警时间: " + date.toLocaleTimeString();
+                    alertTime.innerText = date.toLocaleString();
                     
-                    // 震动一下手机提示 (如果支持)
-                    if (navigator.vibrate) navigator.vibrate(500);
+                    // 页面滚动到底部查看报警
+                    alertCard.scrollIntoView({ behavior: 'smooth' });
                 }
-
             } catch (e) { console.error(e); }
         }
 
-        client.onConnectionLost = (e) => {
-            connStatus.innerText = "❌ 断开连接，重连中...";
-        };
-
+        client.onConnectionLost = onConnectionLost;
         client.onMessageArrived = onMessageArrived;
 
+        // 开始连接
         client.connect({
             useSSL: true,
             onSuccess: onConnect,
+            onFailure: onFail,
             keepAliveInterval: 30
         });
 
