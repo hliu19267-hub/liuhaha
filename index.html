@@ -2,152 +2,108 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>垃圾监测终端</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>垃圾溢满监测</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #1a1a1a;
-            color: #ffffff;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            height: 100vh;
-        }
-        header {
-            width: 100%;
-            padding: 15px 0;
-            background-color: #2d2d2d;
+            font-family: sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
             text-align: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            position: fixed;
-            top: 0;
-            z-index: 100;
-        }
-        h1 { margin: 0; font-size: 18px; font-weight: 500; }
-        .status-dot {
-            height: 10px; width: 10px;
-            background-color: #555;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 5px;
-        }
-        .container {
-            margin-top: 70px;
-            width: 95%;
-            max-width: 600px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
+            padding: 20px;
+            transition: background-color 0.5s;
         }
         .card {
-            background: #2d2d2d;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        #video-view {
-            width: 100%;
-            min-height: 240px;
-            background: #000;
-            display: block;
-        }
-        .info-bar {
+            background: white;
+            border-radius: 15px;
             padding: 15px;
-            display: flex;
-            justify-content: space-between;
-            background: #333;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: 0 auto;
         }
-        .stat-item { text-align: center; }
-        .stat-label { font-size: 12px; color: #aaa; }
-        .stat-val { font-size: 18px; font-weight: bold; color: #4CAF50; }
-        .btn {
-            background: #2196F3;
-            color: white;
-            border: none;
-            padding: 12px;
+        #status-box {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding: 10px;
             border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            margin-top: 10px;
+            background: #e0e0e0;
+            color: #555;
         }
+        #cam-image {
+            width: 100%;
+            border-radius: 10px;
+            background: #000;
+            min-height: 200px;
+        }
+        .time-label {
+            margin-top: 10px;
+            color: #888;
+            font-size: 12px;
+        }
+        /* 报警样式 */
+        .alert-mode body { background-color: #ffcccc; }
+        .alert-mode #status-box { background-color: #ff4444; color: white; }
     </style>
 </head>
 <body>
 
-    <header>
-        <h1><span id="dot" class="status-dot"></span>垃圾溢满监测系统</h1>
-    </header>
-
-    <div class="container">
-        <!-- 视频卡片 -->
-        <div class="card">
-            <img id="video-view" src="" alt="等待设备信号...">
-            <div class="info-bar">
-                <div class="stat-item">
-                    <div class="stat-label">设备FPS</div>
-                    <div class="stat-val" id="fps">0</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">网络状态</div>
-                    <div class="stat-val" id="net-status" style="color:#aaa">未连接</div>
-                </div>
-            </div>
-        </div>
-
-        <button class="btn" onclick="location.reload()">刷新连接</button>
+    <div class="card">
+        <div id="status-box">正在连接...</div>
+        <img id="cam-image" src="" alt="等待数据传输..." />
+        <div class="time-label">最后更新: <span id="time-val">--</span></div>
     </div>
 
     <script>
         // === 配置需与Python一致 ===
         const BROKER = "broker.emqx.io";
-        const PORT = 8083; // WebSocket 端口
+        const PORT = 8083;
         const TOPIC = "yolo_project/live_image";
 
-        const clientID = "phone_" + Math.random().toString(16).substr(2, 8);
-        const client = new Paho.MQTT.Client(BROKER, PORT, clientID);
-
-        const dot = document.getElementById("dot");
-        const statusText = document.getElementById("net-status");
-        const img = document.getElementById("video-view");
-        const fpsText = document.getElementById("fps");
+        const client = new Paho.MQTT.Client(BROKER, PORT, "web_" + Math.random());
+        const statusBox = document.getElementById("status-box");
+        const img = document.getElementById("cam-image");
+        const timeVal = document.getElementById("time-val");
 
         function onConnect() {
-            dot.style.backgroundColor = "#4CAF50";
-            statusText.innerText = "在线";
-            statusText.style.color = "#4CAF50";
+            console.log("Connected");
             client.subscribe(TOPIC);
-        }
-
-        function onConnectionLost(responseObject) {
-            dot.style.backgroundColor = "#f44336";
-            statusText.innerText = "断开";
-            statusText.style.color = "#f44336";
+            statusBox.innerText = "✅ 设备在线 (等待数据)";
+            statusBox.style.background = "#4CAF50";
+            statusBox.style.color = "white";
         }
 
         function onMessageArrived(message) {
             try {
                 const payload = JSON.parse(message.payloadString);
+                
+                // 1. 更新图片
                 img.src = "data:image/jpeg;base64," + payload.image;
-                fpsText.innerText = payload.fps;
-            } catch (e) {
-                console.error(e);
-            }
+                
+                // 2. 更新时间
+                const date = new Date(payload.timestamp * 1000);
+                timeVal.innerText = date.toLocaleTimeString();
+
+                // 3. 判断是否溢满
+                if (payload.status.includes("WARNING")) {
+                    // 报警模式
+                    statusBox.innerText = "⚠️ 垃圾溢满报警！";
+                    document.body.style.backgroundColor = "#ffcccc"; // 背景变红
+                    statusBox.style.background = "#ff4444";
+                } else {
+                    // 正常模式
+                    statusBox.innerText = "🟢 状态正常 (30s刷新)";
+                    document.body.style.backgroundColor = "#f4f4f4"; // 背景恢复
+                    statusBox.style.background = "#4CAF50";
+                }
+
+            } catch (e) { console.error(e); }
         }
 
-        client.onConnectionLost = onConnectionLost;
         client.onMessageArrived = onMessageArrived;
+        client.connect({ onSuccess: onConnect, useSSL: false });
 
-        // 开始连接
-        statusText.innerText = "连接中...";
-        client.connect({
-            onSuccess: onConnect,
-            useSSL: false,
-            keepAliveInterval: 30
-        });
     </script>
 </body>
 </html>
