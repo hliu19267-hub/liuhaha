@@ -3,86 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智慧城市·垃圾监测系统</title>
+    <title>智慧城市·垃圾监测大屏</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
-        /* === 样式部分 === */
+        /* === 基础科技风样式 === */
+        * { box-sizing: border-box; }
         body {
             margin: 0; padding: 20px;
-            font-family: 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #1c1c1c 0%, #2d3436 100%);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: radial-gradient(circle at top right, #1a2a6c, #112b3c, #000000);
             color: #ffffff; min-height: 100vh;
         }
+        
+        /* === 顶部导航栏 === */
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px; padding: 10px 15px;
+            margin-bottom: 20px; padding: 15px 25px;
             background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
             border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
-        .title { font-size: 18px; font-weight: 600; }
-        .status-indicator { display: flex; align-items: center; font-size: 12px; color: #aaa; }
-        .dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; background-color: #555; }
-        .dot.active { background-color: #00ff88; box-shadow: 0 0 10px #00ff88; }
+        .title { font-size: 22px; font-weight: 700; letter-spacing: 1px; color: #00cec9; }
+        .status-indicator { display: flex; align-items: center; font-size: 14px; color: #aaa; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 10px; background-color: #555; }
+        .dot.active { background-color: #00ff88; box-shadow: 0 0 12px #00ff88; }
 
+        /* === 核心网格布局 === */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 900px) {
+            .dashboard { grid-template-columns: 1fr; }
+        }
+
+        /* === 卡片通用样式 (玻璃拟态) === */
         .card {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 16px; padding: 15px; margin-bottom: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(25, 30, 45, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 16px; padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            display: flex; flex-direction: column;
         }
         .section-title {
-            font-size: 14px; color: #00cec9; margin-bottom: 10px;
-            border-left: 3px solid #00cec9; padding-left: 10px;
+            font-size: 16px; color: #81ecec; margin-bottom: 15px; font-weight: 600;
+            border-left: 4px solid #00cec9; padding-left: 10px;
         }
-        #stream-img { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 8px; object-fit: contain; }
+
+        /* === 视频流区域 === */
+        #stream-img { 
+            width: 100%; aspect-ratio: 4/3; 
+            background: #000; border-radius: 12px; 
+            object-fit: contain; border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* === 传感器数据网格 === */
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px; margin-bottom: 20px;
+        }
+        .sensor-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px; padding: 15px;
+            text-align: center; transition: all 0.3s ease;
+        }
+        .sensor-box:hover { background: rgba(0, 206, 201, 0.1); border-color: rgba(0, 206, 201, 0.3); }
+        .sensor-icon { font-size: 24px; margin-bottom: 5px; }
+        .sensor-value { font-size: 22px; font-weight: bold; color: #fff; margin: 5px 0; }
+        .sensor-label { font-size: 12px; color: #a29bfe; }
 
         /* === 报警历史列表样式 === */
-        .history-item {
-            border: 1px solid #ff7675;
-            background: rgba(255, 118, 117, 0.05);
-            margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 8px;
-            animation: slideIn 0.3s ease-out;
-        }
-        @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        .history-container { flex-grow: 1; overflow-y: auto; max-height: 400px; padding-right: 5px; }
+        .history-container::-webkit-scrollbar { width: 6px; }
+        .history-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
         
-        .history-header {
-            display: flex; justify-content: space-between;
-            color: #fab1a0; font-size: 12px; margin-bottom: 5px;
+        .history-item {
+            background: linear-gradient(90deg, rgba(255, 118, 117, 0.1) 0%, rgba(255, 118, 117, 0.02) 100%);
+            border-left: 4px solid #ff7675; margin-bottom: 15px; padding: 12px;
+            border-radius: 8px; animation: slideIn 0.3s ease-out;
         }
-        .history-img { width: 100%; border-radius: 4px; display: block; }
-        .empty-tip { text-align: center; color: #666; font-size: 12px; padding: 20px; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        .history-header { display: flex; justify-content: space-between; color: #fab1a0; font-size: 13px; margin-bottom: 8px; font-weight: bold;}
+        .history-img { width: 100%; border-radius: 6px; display: block; border: 1px solid rgba(255,118,117,0.3); }
+        .empty-tip { text-align: center; color: #636e72; font-size: 14px; padding: 30px 0; }
         
         .clear-btn {
-            float: right; font-size: 12px; color: #aaa; cursor: pointer; text-decoration: underline;
+            float: right; font-size: 12px; color: #b2bec3; cursor: pointer; 
+            background: rgba(255,255,255,0.1); border: none; padding: 5px 10px; border-radius: 4px;
         }
+        .clear-btn:hover { background: rgba(255,118,117,0.8); color: white; }
     </style>
 </head>
 <body>
-
     <div class="header">
-        <div class="title">垃圾溢满监测终端</div>
+        <div class="title">♻️ 智慧城市·垃圾分类与溢满监测总控台</div>
         <div class="status-indicator">
             <div id="status-dot" class="dot"></div>
             <span id="status-text">连接中...</span>
         </div>
     </div>
 
-    <!-- 实时监控 -->
-    <div class="card">
-        <div class="section-title">实时监控 (Live)</div>
-        <img id="stream-img" src="" alt="等待视频流..." />
-    </div>
-
-    <!-- 报警历史 (保留最近5张) -->
-    <div class="card">
-        <div style="overflow: hidden; margin-bottom: 10px;">
-            <span class="section-title" style="float:left">最近报警 (Last 5)</span>
-            <span class="clear-btn" onclick="clearHistory()">清空记录</span>
+    <div class="dashboard">
+        <!-- 左侧：实时监控 -->
+        <div class="card">
+            <div class="section-title">📷 现场实时监控 (AI Vision)</div>
+            <img id="stream-img" src="" alt="等待视频流..." />
         </div>
-        <div id="history-container">
-            <!-- 这里会动态插入图片 -->
-            <div class="empty-tip">暂无报警记录</div>
+
+        <!-- 右侧：传感器与历史记录 -->
+        <div class="right-panel" style="display: flex; flex-direction: column; gap: 20px;">
+            
+            <!-- 传感器数据面板 -->
+            <div class="card">
+                <div class="section-title">📊 环境传感器矩阵</div>
+                <div class="sensor-grid">
+                    <div class="sensor-box">
+                        <div class="sensor-icon">🌡️</div>
+                        <div class="sensor-value" id="val-temp">-- ℃</div>
+                        <div class="sensor-label">环境温度 (DHT11)</div>
+                    </div>
+                    <div class="sensor-box">
+                        <div class="sensor-icon">💧</div>
+                        <div class="sensor-value" id="val-humi">-- %</div>
+                        <div class="sensor-label">环境湿度 (DHT11)</div>
+                    </div>
+                    <div class="sensor-box">
+                        <div class="sensor-icon">💨</div>
+                        <div class="sensor-value" id="val-mq2">--</div>
+                        <div class="sensor-label" id="label-mq2">燃气/烟雾 (MQ-2)</div>
+                    </div>
+                    <div class="sensor-box">
+                        <div class="sensor-icon">🚶</div>
+                        <div class="sensor-value" id="val-ir" style="font-size: 18px;">--</div>
+                        <div class="sensor-label">防区状态 (红外)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 报警历史 -->
+            <div class="card" style="flex-grow: 1;">
+                <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <div class="section-title" style="margin: 0;">🚨 溢满抓拍记录 (Last 5)</div>
+                    <button class="clear-btn" onclick="clearHistory()">清空记录</button>
+                </div>
+                <div class="history-container" id="history-container">
+                    <div class="empty-tip">暂无报警记录</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -91,8 +163,7 @@
         const BROKER = "broker.emqx.io";
         const PORT = 8084;
 
-        // === 1. 读取本地存储的历史记录 ===
-        // 这样刷新网页后，之前的图片还在
+        // 历史记录存储逻辑
         let alertHistory = JSON.parse(localStorage.getItem('my_alert_history') || '[]');
         
         const container = document.getElementById("history-container");
@@ -100,18 +171,27 @@
         const dot = document.getElementById("status-dot");
         const statusText = document.getElementById("status-text");
 
-        // 初始化显示历史
+        // 传感器 DOM 节点
+        const elTemp = document.getElementById("val-temp");
+        const elHumi = document.getElementById("val-humi");
+        const elMq2 = document.getElementById("val-mq2");
+        const labelMq2 = document.getElementById("label-mq2");
+        const elIr = document.getElementById("val-ir");
+
         renderHistory();
 
         const client = new Paho.MQTT.Client(BROKER, PORT, "web_" + Math.random().toString(16).substr(2, 8));
 
         function onConnect() {
-            console.log("Connected");
+            console.log("Connected to MQTT");
             dot.classList.add("active");
-            statusText.innerText = "在线";
+            statusText.innerText = "系统在线";
             statusText.style.color = "#00ff88";
+            
+            // 订阅三个主题
             client.subscribe(BASE_TOPIC + "/stream");
             client.subscribe(BASE_TOPIC + "/alert");
+            client.subscribe(BASE_TOPIC + "/sensor"); // 新增：监听传感器数据
         }
 
         function onMessageArrived(message) {
@@ -122,33 +202,50 @@
                 streamImg.src = "data:image/jpeg;base64," + payload.image;
             } 
             else if (topic.includes("/alert")) {
-                // === 2. 收到新报警的处理逻辑 ===
                 addNewAlert(payload);
+            }
+            else if (topic.includes("/sensor")) {
+                // 新增：解析传感器数据并更新 UI
+                updateSensors(payload);
+            }
+        }
+
+        // 新增：更新传感器 UI 的函数
+        // 假设收到的 JSON 格式为 {"temp": 25.4, "humi": 60, "mq2": 450, "ir": 1}
+        function updateSensors(data) {
+            if(data.temp !== undefined) elTemp.innerText = data.temp + " ℃";
+            if(data.humi !== undefined) elHumi.innerText = data.humi + " %";
+            
+            // 处理 MQ-2 烟雾数据 (假设大于 600 为警报)
+            if(data.mq2 !== undefined) {
+                elMq2.innerText = data.mq2;
+                if(data.mq2 > 600) {
+                    elMq2.style.color = "#ff7675"; // 红色警告
+                    labelMq2.innerText = "⚠️ 气体超标";
+                } else {
+                    elMq2.style.color = "#fff";
+                    labelMq2.innerText = "燃气/烟雾 (MQ-2)";
+                }
+            }
+
+            // 处理红外数据 (假设 0是触发/有人，1是安全/无人，根据您实际情况调整)
+            if(data.ir !== undefined) {
+                if(data.ir === 0) {
+                    elIr.innerText = "⚠️ 检测到活动";
+                    elIr.style.color = "#fdcb6e"; // 黄色警告
+                } else {
+                    elIr.innerText = "安全区静止";
+                    elIr.style.color = "#00b894"; // 绿色安全
+                }
             }
         }
 
         function addNewAlert(data) {
             const timestamp = new Date(data.timestamp * 1000).toLocaleString();
-            
-            // 构建新的记录对象
-            const newRecord = {
-                time: timestamp,
-                img: data.image,
-                id: Date.now()
-            };
-
-            // 加到数组最前面
+            const newRecord = { time: timestamp, img: data.image, id: Date.now() };
             alertHistory.unshift(newRecord);
-
-            // === 3. 核心：只保留最近 5 张 ===
-            if (alertHistory.length > 5) {
-                alertHistory = alertHistory.slice(0, 5);
-            }
-
-            // 保存到浏览器缓存
+            if (alertHistory.length > 5) alertHistory = alertHistory.slice(0, 5);
             localStorage.setItem('my_alert_history', JSON.stringify(alertHistory));
-
-            // 重新渲染界面
             renderHistory();
         }
 
@@ -157,16 +254,13 @@
                 container.innerHTML = '<div class="empty-tip">暂无报警记录</div>';
                 return;
             }
-
-            container.innerHTML = ''; // 清空当前显示
-            
-            // 循环生成 HTML
+            container.innerHTML = '';
             alertHistory.forEach((item, index) => {
                 const div = document.createElement('div');
                 div.className = 'history-item';
                 div.innerHTML = `
                     <div class="history-header">
-                        <span>#${index + 1} ⚠️ 检测到溢满</span>
+                        <span>#${index + 1} 🚨 垃圾箱溢满告警</span>
                         <span>${item.time}</span>
                     </div>
                     <img class="history-img" src="data:image/jpeg;base64,${item.img}" />
@@ -186,12 +280,12 @@
         client.onConnectionLost = (e) => { 
             if(e.errorCode !== 0) {
                 console.log("Lost connection");
-                statusText.innerText = "重连中...";
+                statusText.innerText = "连接断开，重连中...";
                 dot.classList.remove("active");
             }
         };
+
         client.onMessageArrived = onMessageArrived;
-        
         client.connect({ useSSL: true, onSuccess: onConnect, keepAliveInterval: 30 });
     </script>
 </body>
