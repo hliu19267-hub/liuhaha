@@ -2,65 +2,96 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>♻️ 智慧城市·垃圾分类与溢满监测总控台</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>智慧城市·垃圾监测大屏</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
+        /* === 基础科技风样式 === */
         * { box-sizing: border-box; }
         body {
-            margin: 0; padding: 20px;
+            margin: 0; padding: 15px;
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background: radial-gradient(circle at top right, #1a2a6c, #112b3c, #000000);
             color: #ffffff; min-height: 100vh;
         }
+        
+        /* === 顶部导航栏 === */
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px; padding: 15px 25px;
+            margin-bottom: 15px; padding: 12px 18px;
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
-        .title { font-size: 22px; font-weight: 700; letter-spacing: 1px; color: #00cec9; }
+        .title { font-size: 18px; font-weight: 700; letter-spacing: 1px; color: #00cec9; }
         .status-indicator { display: flex; align-items: center; font-size: 14px; color: #aaa; }
         .dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 10px; background-color: #555; }
         .dot.active { background-color: #00ff88; box-shadow: 0 0 12px #00ff88; }
-        .dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
-        @media (max-width: 900px) { .dashboard { grid-template-columns: 1fr; } }
+
+        /* === 核心网格布局 === */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 15px;
+        }
+        @media (max-width: 900px) {
+            .dashboard { grid-template-columns: 1fr; }
+        }
+
+        /* === 卡片通用样式 === */
         .card {
-            background: rgba(25, 30, 45, 0.6); backdrop-filter: blur(10px);
-            border-radius: 16px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); display: flex; flex-direction: column;
+            background: rgba(25, 30, 45, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 16px; padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            display: flex; flex-direction: column;
         }
         .section-title {
-            font-size: 16px; color: #81ecec; margin-bottom: 15px; font-weight: 600;
+            font-size: 16px; color: #81ecec; margin-bottom: 12px; font-weight: 600;
             border-left: 4px solid #00cec9; padding-left: 10px;
         }
+
+        /* === 视频流区域 === */
         #stream-img { 
-            width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 12px; 
+            width: 100%; aspect-ratio: 4/3; 
+            background: #000; border-radius: 12px; 
             object-fit: contain; border: 1px solid rgba(255,255,255,0.1);
         }
-        .sensor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+
+        /* === 传感器数据网格 === */
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px; margin-bottom: 15px;
+        }
         .sensor-box {
-            background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 12px; padding: 15px; text-align: center; transition: all 0.3s ease;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px; padding: 12px;
+            text-align: center; transition: all 0.3s ease;
         }
         .sensor-box:hover { background: rgba(0, 206, 201, 0.1); border-color: rgba(0, 206, 201, 0.3); }
         .sensor-icon { font-size: 24px; margin-bottom: 5px; }
-        .sensor-value { font-size: 22px; font-weight: bold; color: #fff; margin: 5px 0; }
+        .sensor-value { font-size: 20px; font-weight: bold; color: #fff; margin: 5px 0; }
         .sensor-label { font-size: 12px; color: #a29bfe; }
+
+        /* === 报警历史列表样式 === */
         .history-container { flex-grow: 1; overflow-y: auto; max-height: 400px; padding-right: 5px; }
         .history-container::-webkit-scrollbar { width: 6px; }
         .history-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        
         .history-item {
             background: linear-gradient(90deg, rgba(255, 118, 117, 0.1) 0%, rgba(255, 118, 117, 0.02) 100%);
-            border-left: 4px solid #ff7675; margin-bottom: 15px; padding: 12px;
+            border-left: 4px solid #ff7675; margin-bottom: 12px; padding: 10px;
             border-radius: 8px; animation: slideIn 0.3s ease-out;
         }
         @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
-        .history-header { display: flex; justify-content: space-between; color: #fab1a0; font-size: 13px; margin-bottom: 8px; font-weight: bold;}
+        .history-header { display: flex; justify-content: space-between; color: #fab1a0; font-size: 12px; margin-bottom: 6px; font-weight: bold;}
         .history-img { width: 100%; border-radius: 6px; display: block; border: 1px solid rgba(255,118,117,0.3); }
         .empty-tip { text-align: center; color: #636e72; font-size: 14px; padding: 30px 0; }
+        
         .clear-btn {
             float: right; font-size: 12px; color: #b2bec3; cursor: pointer; 
             background: rgba(255,255,255,0.1); border: none; padding: 5px 10px; border-radius: 4px;
@@ -78,26 +109,28 @@
     </div>
 
     <div class="dashboard">
-        <!-- 左侧视频流 -->
+        <!-- 左侧：实时监控 -->
         <div class="card">
             <div class="section-title">📷 现场实时监控 (AI Vision)</div>
             <img id="stream-img" src="" alt="等待视频流..." />
         </div>
 
-        <!-- 右侧面板 -->
-        <div class="right-panel" style="display: flex; flex-direction: column; gap: 20px;">
+        <!-- 右侧：传感器与历史记录 -->
+        <div class="right-panel" style="display: flex; flex-direction: column; gap: 15px;">
+            
+            <!-- 传感器数据面板 -->
             <div class="card">
                 <div class="section-title">📊 环境传感器矩阵</div>
                 <div class="sensor-grid">
                     <div class="sensor-box">
                         <div class="sensor-icon">🌡️</div>
                         <div class="sensor-value" id="val-temp">-- ℃</div>
-                        <div class="sensor-label">环境温度</div>
+                        <div class="sensor-label">环境温度 (DHT11)</div>
                     </div>
                     <div class="sensor-box">
                         <div class="sensor-icon">💧</div>
                         <div class="sensor-value" id="val-humi">-- %</div>
-                        <div class="sensor-label">环境湿度</div>
+                        <div class="sensor-label">环境湿度 (DHT11)</div>
                     </div>
                     <div class="sensor-box">
                         <div class="sensor-icon">💨</div>
@@ -112,8 +145,9 @@
                 </div>
             </div>
 
+            <!-- 报警历史 -->
             <div class="card" style="flex-grow: 1;">
-                <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
                     <div class="section-title" style="margin: 0;">🚨 溢满抓拍记录 (Last 5)</div>
                     <button class="clear-btn" onclick="clearHistory()">清空记录</button>
                 </div>
@@ -129,20 +163,20 @@
         const BROKER = "broker.emqx.io";
         const PORT = 8084;
 
+        // 历史记录存储
         let alertHistory = JSON.parse(localStorage.getItem('my_alert_history') || '[]');
+        
         const container = document.getElementById("history-container");
         const streamImg = document.getElementById("stream-img");
         const dot = document.getElementById("status-dot");
         const statusText = document.getElementById("status-text");
 
+        // 传感器 DOM 节点
         const elTemp = document.getElementById("val-temp");
         const elHumi = document.getElementById("val-humi");
         const elMq2 = document.getElementById("val-mq2");
         const labelMq2 = document.getElementById("label-mq2");
         const elIr = document.getElementById("val-ir");
-
-        // 🟢 防卡死核心变量
-        let isImageRendering = false;
 
         renderHistory();
 
@@ -154,6 +188,7 @@
             statusText.innerText = "系统在线";
             statusText.style.color = "#00ff88";
             
+            // 订阅三个主题
             client.subscribe(BASE_TOPIC + "/stream");
             client.subscribe(BASE_TOPIC + "/alert");
             client.subscribe(BASE_TOPIC + "/sensor");
@@ -165,13 +200,6 @@
                 const payload = JSON.parse(message.payloadString);
 
                 if (topic.includes("/stream")) {
-                    // 🟢 如果正在画上一张图，直接丢弃这一张，防止手机卡顿！
-                    if (isImageRendering) return; 
-                    
-                    isImageRendering = true;
-                    streamImg.onload = () => { isImageRendering = false; };
-                    streamImg.onerror = () => { isImageRendering = false; };
-                    
                     streamImg.src = "data:image/jpeg;base64," + payload.image;
                 } 
                 else if (topic.includes("/alert")) {
@@ -180,34 +208,56 @@
                 else if (topic.includes("/sensor")) {
                     updateSensors(payload);
                 }
-            } catch(e) {
-                console.error("解析出错", e);
+            } catch (e) {
+                console.error("Failed to parse MQTT message:", e);
             }
         }
 
+        // 更新传感器 UI，增加字段存在性检查
         function updateSensors(data) {
-            if(data.temp !== undefined) elTemp.innerText = data.temp + " ℃";
-            if(data.humi !== undefined) elHumi.innerText = data.humi + " %";
+            if (data.temp !== undefined) {
+                elTemp.innerText = data.temp + " ℃";
+            } else {
+                elTemp.innerText = "-- ℃";
+            }
+
+            if (data.humi !== undefined) {
+                elHumi.innerText = data.humi + " %";
+            } else {
+                elHumi.innerText = "-- %";
+            }
             
-            if(data.mq2 !== undefined) {
+            // MQ-2 烟雾数据
+            if (data.mq2 !== undefined) {
                 elMq2.innerText = data.mq2;
-                if(data.mq2 > 600) {
-                    elMq2.style.color = "#ff7675"; 
+                if (data.mq2 > 600) {
+                    elMq2.style.color = "#ff7675"; // 红色警告
                     labelMq2.innerText = "⚠️ 气体超标";
                 } else {
                     elMq2.style.color = "#fff";
                     labelMq2.innerText = "燃气/烟雾 (MQ-2)";
                 }
+            } else {
+                elMq2.innerText = "--";
+                elMq2.style.color = "#fff";
+                labelMq2.innerText = "燃气/烟雾 (MQ-2)";
             }
 
-            if(data.ir !== undefined) {
-                if(data.ir === 0) {
+            // 红外数据：0=触发，1=安全
+            if (data.ir !== undefined) {
+                if (data.ir === 0) {
                     elIr.innerText = "⚠️ 检测到活动";
-                    elIr.style.color = "#fdcb6e"; 
-                } else {
+                    elIr.style.color = "#fdcb6e";
+                } else if (data.ir === 1) {
                     elIr.innerText = "安全区静止";
-                    elIr.style.color = "#00b894"; 
+                    elIr.style.color = "#00b894";
+                } else {
+                    elIr.innerText = "未知";
+                    elIr.style.color = "#fff";
                 }
+            } else {
+                elIr.innerText = "--";
+                elIr.style.color = "#fff";
             }
         }
 
@@ -241,7 +291,7 @@
         }
 
         function clearHistory() {
-            if(confirm('确定要清空所有记录吗？')) {
+            if(confirm('确定要清空所有报警记录吗？')) {
                 alertHistory = [];
                 localStorage.removeItem('my_alert_history');
                 renderHistory();
@@ -250,7 +300,9 @@
 
         client.onConnectionLost = (e) => { 
             if(e.errorCode !== 0) {
+                console.log("Lost connection");
                 statusText.innerText = "连接断开，重连中...";
+                statusText.style.color = "#aaa";
                 dot.classList.remove("active");
             }
         };
