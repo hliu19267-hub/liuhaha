@@ -15,7 +15,6 @@
             color: #e0e6ed; min-height: 100vh; padding: 20px; overflow-x: hidden;
         }
         
-        /* === 顶部炫酷导航栏 === */
         .header {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 25px; padding: 15px 30px;
@@ -29,11 +28,9 @@
         .dot.active { background-color: #00ff88; box-shadow: 0 0 15px #00ff88; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); } }
 
-        /* === 核心网格布局 === */
         .dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 25px; }
         @media (max-width: 1000px) { .dashboard { grid-template-columns: 1fr; } }
 
-        /* === 赛博卡片样式 === */
         .card {
             background: rgba(16, 22, 36, 0.8); backdrop-filter: blur(15px);
             border-radius: 16px; padding: 25px;
@@ -41,18 +38,15 @@
             box-shadow: inset 0 0 20px rgba(0, 206, 201, 0.05), 0 10px 30px rgba(0,0,0,0.5);
             display: flex; flex-direction: column; position: relative; overflow: hidden;
         }
-        /* 边角装饰 */
         .card::before { content: ''; position: absolute; top: 0; left: 0; width: 30px; height: 3px; background: #00cec9; }
         .section-title { font-size: 18px; color: #fff; margin-bottom: 20px; font-weight: 600; display: flex; align-items: center;}
         .section-title span { color: #00cec9; margin-right: 10px; font-size: 20px;}
 
-        /* === 视频流区域 === */
         .video-container { position: relative; width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0, 206, 201, 0.2); }
         #stream-img { width: 100%; aspect-ratio: 4/3; background: #000; object-fit: contain; display: block;}
         .video-overlay { position: absolute; top: 15px; right: 15px; background: rgba(255, 71, 87, 0.8); color: white; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; animation: blink 2s infinite; display: none;}
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-        /* === 传感器数据网格 === */
         .sensor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
         .sensor-box {
             background: linear-gradient(145deg, rgba(26, 32, 53, 0.9), rgba(16, 22, 36, 0.9));
@@ -64,7 +58,6 @@
         .sensor-value { font-size: 26px; font-family: 'Rajdhani', sans-serif; font-weight: 700; color: #fff; margin: 5px 0; letter-spacing: 1px;}
         .sensor-label { font-size: 12px; color: #8395a7; text-transform: uppercase; letter-spacing: 1px;}
 
-        /* === 报警历史列表样式 === */
         .history-container { flex-grow: 1; overflow-y: auto; max-height: 400px; padding-right: 10px; }
         .history-container::-webkit-scrollbar { width: 4px; }
         .history-container::-webkit-scrollbar-thumb { background: #00cec9; border-radius: 4px; }
@@ -74,7 +67,12 @@
             border-radius: 8px; transition: all 0.3s;
         }
         .history-item:hover { background: rgba(255, 71, 87, 0.1); transform: translateX(5px); }
-        .history-header { display: flex; justify-content: space-between; color: #ff6b81; font-size: 14px; margin-bottom: 10px; font-weight: bold;}
+        
+        /* 修改了标题行的排版布局，防止动态 AI 文字过长撑破边框 */
+        .history-header { display: flex; justify-content: space-between; color: #ff6b81; font-size: 14px; margin-bottom: 10px; font-weight: bold; align-items: flex-start; gap: 10px;}
+        .history-header-title { flex: 1; word-break: break-word; line-height: 1.4; color: #feca57;}
+        .history-header-time { white-space: nowrap; color: #a4b0be; font-size: 12px; margin-top: 2px;}
+        
         .history-img { width: 100%; border-radius: 8px; border: 1px solid rgba(255,71,87,0.3); box-shadow: 0 4px 10px rgba(0,0,0,0.3);}
         .empty-tip { text-align: center; color: #8395a7; font-size: 14px; padding: 40px 0; font-style: italic;}
         
@@ -98,7 +96,7 @@
         <div class="card">
             <div class="section-title"><span>📷</span> 现场实时监控网络 (LIVE)</div>
             <div class="video-container">
-                <div id="alert-badge" class="video-overlay">⚠️ 溢满预警</div>
+                <div id="alert-badge" class="video-overlay">⚠️ 画面异常</div>
                 <img id="stream-img" src="" alt="等待节点视频流接入..." />
             </div>
         </div>
@@ -224,7 +222,10 @@
 
         function addNewAlert(data) {
             const timestamp = new Date(data.timestamp * 1000).toLocaleString();
-            const newRecord = { time: timestamp, img: data.image, id: Date.now() };
+            // 【核心修改】：提取 Python 传过来的动态文字，如果没有则兜底显示“溢满确证”
+            const alertText = data.msg || "溢满确证"; 
+            const newRecord = { time: timestamp, img: data.image, msg: alertText, id: Date.now() };
+            
             alertHistory.unshift(newRecord);
             if (alertHistory.length > 10) alertHistory = alertHistory.slice(0, 10);
             localStorage.setItem('my_alert_history', JSON.stringify(alertHistory));
@@ -238,12 +239,14 @@
             }
             container.innerHTML = '';
             alertHistory.forEach((item, index) => {
+                // 读取动态文字
+                const displayMsg = item.msg ? item.msg : "溢满确证";
                 const div = document.createElement('div');
                 div.className = 'history-item';
                 div.innerHTML = `
                     <div class="history-header">
-                        <span>#${index + 1} ⚠️ 溢满确证</span>
-                        <span>${item.time}</span>
+                        <span class="history-header-title">#${index + 1} ⚠️ ${displayMsg}</span>
+                        <span class="history-header-time">${item.time}</span>
                     </div>
                     <img class="history-img" src="data:image/jpeg;base64,${item.img}" />
                 `;
