@@ -3,147 +3,196 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智慧城市·垃圾监测大屏 PRO</title>
+    <title>OMNI-VISION 智慧环卫总控中心</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap');
+        /* 导入科幻数字字体 */
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Noto+Sans+SC:wght@400;700&display=swap');
+        
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        
         body {
-            font-family: 'Segoe UI', 'Rajdhani', sans-serif;
-            background: radial-gradient(circle at center, #0a1128 0%, #000000 100%);
-            color: #e0e6ed; min-height: 100vh; padding: 20px; overflow-x: hidden;
+            font-family: 'Noto Sans SC', sans-serif;
+            background: #050b14;
+            background-image: radial-gradient(circle at 15% 50%, rgba(0, 206, 201, 0.08) 0%, transparent 50%),
+                              radial-gradient(circle at 85% 30%, rgba(255, 71, 87, 0.05) 0%, transparent 50%);
+            color: #e0e6ed; min-height: 100vh; padding: 25px; overflow-x: hidden;
         }
         
+        /* 顶部导航栏 - 毛玻璃特效 */
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 25px; padding: 15px 30px;
-            background: linear-gradient(90deg, rgba(0, 206, 201, 0.1) 0%, rgba(25, 30, 45, 0.6) 50%, rgba(0, 206, 201, 0.1) 100%);
-            border-radius: 12px; border: 1px solid rgba(0, 206, 201, 0.3);
-            box-shadow: 0 0 20px rgba(0, 206, 201, 0.2);
+            margin-bottom: 25px; padding: 15px 35px;
+            background: rgba(16, 22, 36, 0.65);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px; border: 1px solid rgba(0, 206, 201, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
-        .title { font-size: 26px; font-weight: 700; color: #00cec9; text-shadow: 0 0 10px rgba(0,206,201,0.5); letter-spacing: 2px;}
-        .status-indicator { display: flex; align-items: center; font-size: 15px; font-weight: bold; }
-        .dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 10px; background-color: #ff4757; box-shadow: 0 0 10px #ff4757;}
-        .dot.active { background-color: #00ff88; box-shadow: 0 0 15px #00ff88; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); } }
+        
+        .title-box { display: flex; align-items: center; gap: 15px;}
+        .title { 
+            font-size: 28px; font-weight: 700; color: #fff; 
+            letter-spacing: 2px; text-shadow: 0 0 15px rgba(0, 206, 201, 0.6);
+        }
+        .title span { color: #00cec9; }
+        
+        .right-header { display: flex; align-items: center; gap: 30px; }
+        .clock { font-family: 'Orbitron', sans-serif; font-size: 20px; color: #a4b0be; letter-spacing: 1px;}
+        
+        .status-indicator { display: flex; align-items: center; font-size: 14px; font-weight: bold; background: rgba(0,0,0,0.3); padding: 8px 15px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05);}
+        .dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 10px; background-color: #ff4757; box-shadow: 0 0 10px #ff4757;}
+        .dot.active { background-color: #00ff88; box-shadow: 0 0 15px #00ff88; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); } 70% { box-shadow: 0 0 0 8px rgba(0, 255, 136, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); } }
 
         .dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 25px; }
-        @media (max-width: 1000px) { .dashboard { grid-template-columns: 1fr; } }
 
+        /* 统一卡片风格 */
         .card {
-            background: rgba(16, 22, 36, 0.8); backdrop-filter: blur(15px);
+            background: rgba(16, 22, 36, 0.6); backdrop-filter: blur(10px);
             border-radius: 16px; padding: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            box-shadow: inset 0 0 20px rgba(0, 206, 201, 0.05), 0 10px 30px rgba(0,0,0,0.5);
-            display: flex; flex-direction: column; position: relative; overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            display: flex; flex-direction: column; position: relative;
         }
-        .card::before { content: ''; position: absolute; top: 0; left: 0; width: 30px; height: 3px; background: #00cec9; }
-        .section-title { font-size: 18px; color: #fff; margin-bottom: 20px; font-weight: 600; display: flex; align-items: center;}
-        .section-title span { color: #00cec9; margin-right: 10px; font-size: 20px;}
-
-        /* === 【新增】消防紧急状态栏样式 === */
-        #emergency-banner {
-            display: none; /* 默认隐藏 */
-            background: #ff4757; color: white; padding: 12px 20px; 
-            text-align: center; font-weight: bold; border-radius: 12px; 
-            margin-bottom: 15px; font-size: 18px; 
-            box-shadow: 0 0 20px rgba(255, 71, 87, 0.8);
-            animation: emergency-blink 0.8s infinite alternate;
-        }
-        @keyframes emergency-blink { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0.85; transform: scale(0.98); } }
-
-        .video-container { position: relative; width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0, 206, 201, 0.2); }
-        #stream-img { width: 100%; aspect-ratio: 4/3; background: #000; object-fit: contain; display: block;}
+        .card::before { content: ''; position: absolute; top: 0; left: 20px; right: 20px; height: 1px; background: linear-gradient(90deg, transparent, rgba(0, 206, 201, 0.5), transparent); }
         
+        .section-title { font-size: 18px; color: #fff; margin-bottom: 20px; font-weight: 600; display: flex; align-items: center; letter-spacing: 1px;}
+        .section-title i { font-style: normal; margin-right: 10px; font-size: 22px; filter: drop-shadow(0 0 5px rgba(0,206,201,0.5));}
+
+        /* === 消防紧急状态栏 (极具冲击力) === */
+        #emergency-banner {
+            display: none; 
+            background: linear-gradient(90deg, #ff0000, #cc0000); 
+            color: #fff; padding: 15px 20px; 
+            text-align: center; font-weight: bold; border-radius: 12px; 
+            margin-bottom: 20px; font-size: 18px; letter-spacing: 1px;
+            border: 2px solid #ff4757;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.6);
+            animation: siren 0.6s infinite alternate;
+        }
+        @keyframes siren { 0% { transform: scale(1); background: linear-gradient(90deg, #ff0000, #cc0000); box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);} 100% { transform: scale(1.02); background: linear-gradient(90deg, #ff4757, #ff6b81); box-shadow: 0 0 40px rgba(255, 71, 87, 0.9); } }
+
+        /* 视频流区域特效 */
+        .video-wrapper { position: relative; width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0, 206, 201, 0.3); background: #000; box-shadow: 0 0 20px rgba(0,0,0,0.5);}
+        #stream-img { width: 100%; aspect-ratio: 4/3; object-fit: contain; display: block; z-index: 1;}
+        /* 扫描线特效 */
+        .scanline {
+            position: absolute; top: 0; left: 0; width: 100%; height: 10px;
+            background: linear-gradient(to bottom, transparent, rgba(0, 206, 201, 0.4), transparent);
+            opacity: 0.6; z-index: 2; pointer-events: none;
+            animation: scan 3s linear infinite;
+        }
+        @keyframes scan { 0% { top: -10px; } 100% { top: 100%; } }
+
+        /* 传感器矩阵 */
         .sensor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
         .sensor-box {
-            background: linear-gradient(145deg, rgba(26, 32, 53, 0.9), rgba(16, 22, 36, 0.9));
-            border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 20px 15px;
-            text-align: center; transition: all 0.3s ease; position: relative;
+            background: rgba(10, 15, 26, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px 15px;
+            text-align: center; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative; overflow: hidden;
         }
-        .sensor-box:hover { transform: translateY(-5px); border-color: rgba(0, 206, 201, 0.5); box-shadow: 0 5px 15px rgba(0, 206, 201, 0.2); }
-        .sensor-icon { font-size: 28px; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(255,255,255,0.3));}
-        .sensor-value { font-size: 26px; font-family: 'Rajdhani', sans-serif; font-weight: 700; color: #fff; margin: 5px 0; letter-spacing: 1px;}
-        .sensor-label { font-size: 12px; color: #8395a7; text-transform: uppercase; letter-spacing: 1px;}
+        .sensor-box::after {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 60%);
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .sensor-box:hover { transform: translateY(-5px) scale(1.02); border-color: rgba(0, 206, 201, 0.4); box-shadow: 0 10px 25px rgba(0, 206, 201, 0.15); }
+        .sensor-box:hover::after { opacity: 1; }
+        
+        .sensor-icon { font-size: 32px; margin-bottom: 12px; filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));}
+        .sensor-value { font-size: 30px; font-family: 'Orbitron', sans-serif; font-weight: 700; color: #fff; margin: 5px 0; text-shadow: 0 0 10px rgba(255,255,255,0.3);}
+        .sensor-label { font-size: 13px; color: #8395a7; letter-spacing: 1px; font-weight: 500;}
 
-        .history-container { flex-grow: 1; overflow-y: auto; max-height: 400px; padding-right: 10px; }
-        .history-container::-webkit-scrollbar { width: 4px; }
-        .history-container::-webkit-scrollbar-thumb { background: #00cec9; border-radius: 4px; }
+        /* 异常日志区 */
+        .history-container { flex-grow: 1; overflow-y: auto; max-height: 480px; padding-right: 10px; }
+        .history-container::-webkit-scrollbar { width: 6px; }
+        .history-container::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 3px;}
+        .history-container::-webkit-scrollbar-thumb { background: rgba(0, 206, 201, 0.5); border-radius: 3px; }
+        .history-container::-webkit-scrollbar-thumb:hover { background: #00cec9; }
         
         .history-item {
-            background: rgba(255, 71, 87, 0.05); border-left: 4px solid #ff4757; margin-bottom: 15px; padding: 15px;
-            border-radius: 8px; transition: all 0.3s;
+            background: rgba(0, 0, 0, 0.4); border-left: 4px solid #ff4757; margin-bottom: 15px; padding: 15px;
+            border-radius: 8px; transition: all 0.3s; position: relative; overflow: hidden;
         }
-        /* 针对环境报警的特殊样式 */
-        .history-item.emergency { background: rgba(255, 0, 0, 0.2); border-left: 6px solid #ff0000; }
+        .history-item:hover { background: rgba(255, 71, 87, 0.05); transform: translateX(5px); }
+        .history-item.emergency { border-left: 6px solid #ff0000; background: rgba(255, 0, 0, 0.1); }
+        .history-item.emergency::before { content: '🚨 FIRE'; position: absolute; right: -20px; top: 15px; background: #ff0000; color: #fff; font-size: 10px; padding: 2px 25px; transform: rotate(45deg); font-weight: bold;}
         
-        .history-header { display: flex; justify-content: space-between; color: #ff6b81; font-size: 14px; margin-bottom: 10px; font-weight: bold; align-items: flex-start; gap: 10px;}
-        .history-header-title { flex: 1; word-break: break-word; line-height: 1.4; color: #feca57;}
-        .history-header-time { white-space: nowrap; color: #a4b0be; font-size: 12px; margin-top: 2px;}
+        .history-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 10px;}
+        .history-header-title { flex: 1; color: #ff6b81; font-size: 15px; font-weight: bold; line-height: 1.4;}
+        .history-item.emergency .history-header-title { color: #ff4757; font-size: 16px; text-shadow: 0 0 5px rgba(255,0,0,0.5);}
+        .history-header-time { color: #8395a7; font-size: 12px; font-family: 'Orbitron', sans-serif;}
         
-        .history-img { width: 100%; border-radius: 8px; border: 1px solid rgba(255,71,87,0.3); box-shadow: 0 4px 10px rgba(0,0,0,0.3);}
-        .empty-tip { text-align: center; color: #8395a7; font-size: 14px; padding: 40px 0; font-style: italic;}
+        .history-img { width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: block;}
+        .empty-tip { text-align: center; color: #576574; font-size: 14px; padding: 50px 0; font-style: italic;}
         
         .clear-btn {
-            background: transparent; border: 1px solid rgba(255, 71, 87, 0.5); color: #ff4757; cursor: pointer; 
-            padding: 6px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; transition: all 0.3s;
+            background: transparent; border: 1px solid #576574; color: #a4b0be; cursor: pointer; 
+            padding: 6px 15px; border-radius: 20px; font-size: 12px; transition: all 0.3s;
         }
-        .clear-btn:hover { background: #ff4757; color: white; box-shadow: 0 0 10px #ff4757; }
+        .clear-btn:hover { background: rgba(255, 71, 87, 0.2); border-color: #ff4757; color: #ff4757; box-shadow: 0 0 10px rgba(255,71,87,0.3); }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="title">♻️ OMNI-VISION 智能环卫总控</div>
-        <div class="status-indicator">
-            <div id="status-dot" class="dot"></div>
-            <span id="status-text" style="color:#ff4757;">SYSTEM OFFLINE</span>
+        <div class="title-box">
+            <div class="title">OMNI-VISION <span>大感知平台</span></div>
+        </div>
+        <div class="right-header">
+            <div class="clock" id="live-clock">00:00:00</div>
+            <div class="status-indicator">
+                <div id="status-dot" class="dot"></div>
+                <span id="status-text" style="color:#ff4757;">DISCONNECTED</span>
+            </div>
         </div>
     </div>
 
     <div class="dashboard">
         <div class="card">
-            <div class="section-title"><span>📷</span> 现场实时监控网络 (LIVE)</div>
+            <div class="section-title"><i>📡</i> 现场实况监测节点</div>
             
             <div id="emergency-banner">
-                🚨 系统紧急警告：<span id="emergency-text"></span>
+                ⚠️ 系统紧急通报：<span id="emergency-text"></span>
             </div>
 
-            <div class="video-container">
-                <img id="stream-img" src="" alt="等待节点视频流接入..." />
+            <div class="video-wrapper">
+                <div class="scanline"></div>
+                <img id="stream-img" src="" alt="等待节点视频流加密传输接入..." />
             </div>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 25px;">
             <div class="card">
-                <div class="section-title"><span>📊</span> 终端阵列数据</div>
+                <div class="section-title"><i>🎛️</i> 边缘感知阵列</div>
                 <div class="sensor-grid">
                     <div class="sensor-box">
                         <div class="sensor-icon">🌡️</div>
-                        <div class="sensor-value" id="val-temp">-- ℃</div>
+                        <div class="sensor-value" id="val-temp">-- <span style="font-size:16px">℃</span></div>
                         <div class="sensor-label">环境温度</div>
                     </div>
                     <div class="sensor-box">
                         <div class="sensor-icon">💧</div>
-                        <div class="sensor-value" id="val-humi">-- %</div>
+                        <div class="sensor-value" id="val-humi">-- <span style="font-size:16px">%</span></div>
                         <div class="sensor-label">空气湿度</div>
                     </div>
                     <div class="sensor-box">
                         <div class="sensor-icon">💨</div>
                         <div class="sensor-value" id="val-mq2">--</div>
-                        <div class="sensor-label" id="label-mq2">VOCs / 烟雾</div>
+                        <div class="sensor-label" id="label-mq2">VOCs / 烟雾指数</div>
                     </div>
                     <div class="sensor-box">
                         <div class="sensor-icon" id="icon-ir">🛡️</div>
                         <div class="sensor-value" id="val-ir" style="font-size: 20px;">--</div>
-                        <div class="sensor-label">防区动态</div>
+                        <div class="sensor-label">区域防入侵</div>
                     </div>
                 </div>
             </div>
 
             <div class="card" style="flex-grow: 1;">
                 <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                    <div class="section-title" style="margin: 0;"><span>🚨</span> 异常抓拍归档</div>
-                    <button class="clear-btn" onclick="clearHistory()">清除日志</button>
+                    <div class="section-title" style="margin: 0;"><i>📁</i> 异常事件追溯</div>
+                    <button class="clear-btn" onclick="clearHistory()">清除缓存</button>
                 </div>
                 <div class="history-container" id="history-container">
                     <div class="empty-tip">监控矩阵无异常记录</div>
@@ -153,6 +202,12 @@
     </div>
 
     <script>
+        // 实时时钟
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('live-clock').innerText = now.toLocaleTimeString('en-US', { hour12: false });
+        }, 1000);
+
         const BASE_TOPIC = "2428510019ljz";
         const BROKER = "broker.emqx.io";
         const PORT = 8084;
@@ -164,7 +219,6 @@
         const dot = document.getElementById("status-dot");
         const statusText = document.getElementById("status-text");
         
-        // 【新增】紧急状态栏 DOM
         const emergencyBanner = document.getElementById("emergency-banner");
         const emergencyText = document.getElementById("emergency-text");
 
@@ -177,11 +231,12 @@
 
         renderHistory();
 
-        const client = new Paho.MQTT.Client(BROKER, PORT, "web_" + Math.random().toString(16).substr(2, 8));
+        // 随机生成 ClientID 防止冲突
+        const client = new Paho.MQTT.Client(BROKER, PORT, "OV_Web_" + Math.random().toString(16).substr(2, 8));
 
         function onConnect() {
             dot.classList.add("active");
-            statusText.innerText = "SYSTEM ONLINE";
+            statusText.innerText = "DATA LINK ACTIVE";
             statusText.style.color = "#00ff88";
             client.subscribe(BASE_TOPIC + "/stream");
             client.subscribe(BASE_TOPIC + "/alert");
@@ -200,12 +255,11 @@
             else if (topic.includes("/alert")) {
                 addNewAlert(payload);
                 
-                // 【核心逻辑】：如果是环境异常（包含“异常”两个字），触发顶部通报栏！
+                // 拦截消防环境异常字眼，触发紧急横幅
                 if (payload.msg && payload.msg.includes("异常")) {
                     emergencyText.innerHTML = payload.msg;
                     emergencyBanner.style.display = "block";
                     
-                    // 15秒后自动隐藏该横幅
                     clearTimeout(emergencyTimeout);
                     emergencyTimeout = setTimeout(() => {
                         emergencyBanner.style.display = "none";
@@ -219,41 +273,42 @@
 
         function updateSensors(data) {
             if(data.temp !== undefined) {
-                elTemp.innerText = data.temp + " ℃";
-                if(data.temp >= 40.0) { elTemp.style.color = "#ff4757"; elTemp.style.textShadow = "0 0 10px #ff4757"; } 
-                else { elTemp.style.color = "#fff"; elTemp.style.textShadow = "none"; }
+                elTemp.innerHTML = data.temp + ' <span style="font-size:16px">℃</span>';
+                if(data.temp >= 40.0) { elTemp.style.color = "#ff4757"; elTemp.style.textShadow = "0 0 15px #ff4757"; } 
+                else { elTemp.style.color = "#fff"; elTemp.style.textShadow = "0 0 10px rgba(255,255,255,0.3)"; }
             }
             if(data.humi !== undefined) {
-                elHumi.innerText = data.humi + " %";
-                if(data.humi <= 20.0) { elHumi.style.color = "#ff4757"; elHumi.style.textShadow = "0 0 10px #ff4757"; } 
-                else { elHumi.style.color = "#fff"; elHumi.style.textShadow = "none"; }
+                elHumi.innerHTML = data.humi + ' <span style="font-size:16px">%</span>';
+                if(data.humi <= 20.0) { elHumi.style.color = "#ff4757"; elHumi.style.textShadow = "0 0 15px #ff4757"; } 
+                else { elHumi.style.color = "#fff"; elHumi.style.textShadow = "0 0 10px rgba(255,255,255,0.3)"; }
             }
             if(data.mq2 !== undefined) {
                 elMq2.innerText = data.mq2;
                 if(data.mq2 > 600) {
-                    elMq2.style.color = "#ff4757"; elMq2.style.textShadow = "0 0 10px #ff4757";
-                    labelMq2.innerText = "⚠️ 气体超标";
+                    elMq2.style.color = "#ff4757"; elMq2.style.textShadow = "0 0 15px #ff4757";
+                    labelMq2.innerText = "🔥 气体超标警报";
+                    labelMq2.style.color = "#ff4757";
                 } else {
-                    elMq2.style.color = "#fff"; elMq2.style.textShadow = "none";
-                    labelMq2.innerText = "VOCs / 烟雾";
+                    elMq2.style.color = "#fff"; elMq2.style.textShadow = "0 0 10px rgba(255,255,255,0.3)";
+                    labelMq2.innerText = "VOCs / 烟雾指数";
+                    labelMq2.style.color = "#8395a7";
                 }
             }
             if(data.ir !== undefined) {
                 if(data.ir === 0) {
-                    elIr.innerText = "活动侵入"; elIr.style.color = "#eccc68";
+                    elIr.innerText = "活动入侵"; elIr.style.color = "#feca57"; elIr.style.textShadow = "0 0 10px #feca57";
                     iconIr.innerText = "🚶";
                 } else {
-                    elIr.innerText = "安全静止"; elIr.style.color = "#00cec9";
+                    elIr.innerText = "防区安全"; elIr.style.color = "#00cec9"; elIr.style.textShadow = "0 0 10px #00cec9";
                     iconIr.innerText = "🛡️";
                 }
             }
         }
 
         function addNewAlert(data) {
-            const timestamp = new Date(data.timestamp * 1000).toLocaleString();
-            const alertText = data.msg || "溢满确证"; 
+            const timestamp = new Date(data.timestamp * 1000).toLocaleString('en-US', {hour12: false});
+            const alertText = data.msg || "检测到异常"; 
             
-            // 标记是否为消防紧急事件
             const isEmergency = alertText.includes("异常");
             const newRecord = { time: timestamp, img: data.image, msg: alertText, isEmergency: isEmergency, id: Date.now() };
             
@@ -269,16 +324,15 @@
                 return;
             }
             container.innerHTML = '';
-            alertHistory.forEach((item, index) => {
-                const displayMsg = item.msg ? item.msg : "溢满确证";
-                // 如果是紧急事件，应用特殊的闪烁边框样式
+            alertHistory.forEach((item) => {
                 const emergencyClass = item.isEmergency ? "emergency" : "";
+                const icon = item.isEmergency ? "🔥" : "⚠️";
                 
                 const div = document.createElement('div');
                 div.className = `history-item ${emergencyClass}`;
                 div.innerHTML = `
                     <div class="history-header">
-                        <span class="history-header-title">#${index + 1} ⚠️ ${displayMsg}</span>
+                        <span class="history-header-title">${icon} ${item.msg}</span>
                         <span class="history-header-time">${item.time}</span>
                     </div>
                     <img class="history-img" src="data:image/jpeg;base64,${item.img}" />
@@ -288,7 +342,7 @@
         }
 
         function clearHistory() {
-            if(confirm('警告：确认清除所有防区日志？')) {
+            if(confirm('系统警告：是否清除本地存储的所有异常日志？')) {
                 alertHistory = [];
                 localStorage.removeItem('my_alert_history');
                 renderHistory();
@@ -297,8 +351,8 @@
 
         client.onConnectionLost = (e) => { 
             if(e.errorCode !== 0) {
-                statusText.innerText = "RECONNECTING...";
-                statusText.style.color = "#ff4757";
+                statusText.innerText = "LINK LOST - RECONNECTING...";
+                statusText.style.color = "#feca57";
                 dot.classList.remove("active");
             }
         };
