@@ -187,7 +187,7 @@
                 <div class="sensor-grid">
                     <div class="sensor-box box-temp">
                         <div class="sensor-icon">🌡️</div>
-                        <div class="sensor-label">气温宝宝</div>
+                        <div class="sensor-label">气温</div>
                         <div class="sensor-value" id="val-temp">-- <span class="sensor-unit">°C</span></div>
                     </div>
                     <div class="sensor-box box-humi">
@@ -386,7 +386,7 @@
         }
 
         function clearHistory() {
-            if(confirm('🐾 要把所有的小秘密记录都擦掉吗？')) {
+            if(confirm('🐾 要把所有的记录都擦掉吗？')) {
                 alertHistory = [];
                 localStorage.removeItem('my_alert_history');
                 document.getElementById('search-input').value = '';
