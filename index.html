@@ -3,186 +3,229 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OMNI-VISION 智慧环卫总控中心</title>
+    <title>OMNI-VISION 智慧环卫总控</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap');
+        /* 导入军工级科幻数字字体 */
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+SC:wght@400;500;700&display=swap');
         
         * { box-sizing: border-box; margin: 0; padding: 0; }
         
         body {
             font-family: 'Noto Sans SC', sans-serif;
-            background: #050b14;
-            background-image: radial-gradient(circle at 15% 50%, rgba(0, 206, 201, 0.08) 0%, transparent 50%),
-                              radial-gradient(circle at 85% 30%, rgba(255, 71, 87, 0.05) 0%, transparent 50%);
-            color: #e0e6ed; min-height: 100vh; padding: 25px; overflow-x: hidden;
+            background-color: #03060f;
+            /* 科幻网格背景 */
+            background-image: 
+                linear-gradient(rgba(0, 206, 201, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 206, 201, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: #e0e6ed; min-height: 100vh; padding: 20px; overflow-x: hidden;
         }
         
-        /* === 顶部导航栏 === */
+        /* === FUI 风格头部 === */
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 25px; padding: 15px 35px;
-            background: rgba(16, 22, 36, 0.65);
-            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-            border-radius: 16px; border: 1px solid rgba(0, 206, 201, 0.2);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px; padding: 15px 30px;
+            background: linear-gradient(90deg, rgba(0,206,201,0.15) 0%, rgba(3,6,15,0.8) 20%, rgba(3,6,15,0.8) 80%, rgba(0,206,201,0.15) 100%);
+            border-top: 2px solid #00cec9; border-bottom: 1px solid rgba(0, 206, 201, 0.3);
+            position: relative;
         }
+        /* 头部装饰线 */
+        .header::before { content: ''; position: absolute; top: -2px; left: 0; width: 100px; height: 2px; background: #fff; box-shadow: 0 0 10px #fff;}
+        .header::after { content: ''; position: absolute; bottom: -1px; right: 0; width: 150px; height: 1px; background: #00cec9; box-shadow: 0 0 10px #00cec9;}
         
         .title-box { display: flex; align-items: center; gap: 15px;}
-        .title { font-size: 26px; font-weight: 700; color: #fff; letter-spacing: 2px; text-shadow: 0 0 15px rgba(0, 206, 201, 0.6);}
-        .title span { color: #00cec9; }
+        .title { font-size: 28px; font-weight: 700; color: #fff; letter-spacing: 4px; text-transform: uppercase;}
+        .title span { color: #00cec9; text-shadow: 0 0 15px rgba(0, 206, 201, 0.8); font-family: 'Share Tech Mono', monospace;}
         
         .right-header { display: flex; align-items: center; gap: 20px; }
-        .clock { font-family: 'Orbitron', sans-serif; font-size: 18px; color: #a4b0be; letter-spacing: 1px; margin-right: 10px;}
+        .clock { font-family: 'Share Tech Mono', monospace; font-size: 22px; color: #00cec9; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,206,201,0.5);}
         
-        /* 状态与操作按钮 */
-        .status-badge { display: flex; align-items: center; font-size: 13px; font-weight: bold; background: rgba(0,0,0,0.4); padding: 8px 15px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05);}
-        .dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 10px; background-color: #ff4757; box-shadow: 0 0 10px #ff4757;}
-        .dot.active { background-color: #00ff88; box-shadow: 0 0 15px #00ff88; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); } 70% { box-shadow: 0 0 0 8px rgba(0, 255, 136, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); } }
+        .status-badge { display: flex; align-items: center; font-size: 12px; font-family: 'Share Tech Mono', monospace; background: rgba(0,206,201,0.05); padding: 6px 15px; border: 1px solid rgba(0,206,201,0.3); letter-spacing: 1px;}
+        .dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 10px; background-color: #ff4757; box-shadow: 0 0 10px #ff4757;}
+        .dot.active { background-color: #00ff88; box-shadow: 0 0 15px #00ff88; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
 
         .action-btn {
-            background: rgba(0, 206, 201, 0.1); border: 1px solid rgba(0, 206, 201, 0.5); color: #00cec9;
-            padding: 8px 18px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer;
-            transition: all 0.3s; display: flex; align-items: center; gap: 6px;
+            background: transparent; border: 1px solid #00cec9; color: #00cec9;
+            padding: 6px 15px; font-family: 'Share Tech Mono', monospace; font-size: 13px; cursor: pointer;
+            transition: all 0.3s; position: relative; overflow: hidden;
         }
-        .action-btn:hover { background: #00cec9; color: #050b14; box-shadow: 0 0 15px rgba(0, 206, 201, 0.6); }
+        .action-btn:hover { background: #00cec9; color: #000; box-shadow: 0 0 20px rgba(0,206,201,0.6); }
 
-        .dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 25px; }
+        .dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
 
+        /* === HUD 卡片风格 === */
         .card {
-            background: rgba(16, 22, 36, 0.6); backdrop-filter: blur(10px);
-            border-radius: 16px; padding: 25px; border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4); display: flex; flex-direction: column; position: relative;
+            background: rgba(4, 9, 20, 0.8); backdrop-filter: blur(5px);
+            padding: 25px; border: 1px solid rgba(0, 206, 201, 0.2);
+            position: relative;
         }
-        .card::before { content: ''; position: absolute; top: 0; left: 20px; right: 20px; height: 1px; background: linear-gradient(90deg, transparent, rgba(0, 206, 201, 0.5), transparent); }
-        .section-title { font-size: 18px; color: #fff; margin-bottom: 20px; font-weight: 600; display: flex; align-items: center; letter-spacing: 1px;}
+        /* 四角瞄准框特效 */
+        .card::before, .card::after { content: ''; position: absolute; width: 20px; height: 20px; pointer-events: none; }
+        .card::before { top: -1px; left: -1px; border-top: 2px solid #00cec9; border-left: 2px solid #00cec9; }
+        .card::after { bottom: -1px; right: -1px; border-bottom: 2px solid #00cec9; border-right: 2px solid #00cec9; }
         
+        .card-inner-corner1 { position: absolute; top: -1px; right: -1px; width: 20px; height: 20px; border-top: 2px solid #00cec9; border-right: 2px solid #00cec9; pointer-events: none;}
+        .card-inner-corner2 { position: absolute; bottom: -1px; left: -1px; width: 20px; height: 20px; border-bottom: 2px solid #00cec9; border-left: 2px solid #00cec9; pointer-events: none;}
+
+        .section-title { font-size: 16px; color: #00cec9; margin-bottom: 20px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; border-bottom: 1px solid rgba(0,206,201,0.2); padding-bottom: 10px; display: flex; justify-content: space-between;}
+        .section-title span { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: #576574;}
+
+        /* === 极度醒目的消防预警栏 === */
         #emergency-banner {
-            display: none; background: linear-gradient(90deg, #ff0000, #cc0000); color: #fff; padding: 15px 20px; 
-            text-align: center; font-weight: bold; border-radius: 12px; margin-bottom: 20px; font-size: 18px; 
-            border: 2px solid #ff4757; box-shadow: 0 0 30px rgba(255, 0, 0, 0.6); animation: siren 0.6s infinite alternate;
+            display: none; background: #ff0000; color: #fff; padding: 12px 20px; 
+            text-align: center; font-weight: bold; margin-bottom: 20px; font-size: 16px; letter-spacing: 2px;
+            border: 2px solid #ff4757; box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 0 30px rgba(255, 0, 0, 0.8);
+            text-transform: uppercase; font-family: 'Share Tech Mono', monospace;
+            animation: strobe 0.3s infinite alternate;
         }
-        @keyframes siren { 0% { transform: scale(1); box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);} 100% { transform: scale(1.02); box-shadow: 0 0 40px rgba(255, 71, 87, 0.9); } }
+        @keyframes strobe { 0% { opacity: 1; } 100% { opacity: 0.8; background: #cc0000; } }
 
-        .video-wrapper { position: relative; width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0, 206, 201, 0.3); background: #000; }
-        #stream-img { width: 100%; aspect-ratio: 4/3; object-fit: contain; display: block; z-index: 1;}
-        .scanline { position: absolute; top: 0; left: 0; width: 100%; height: 10px; background: linear-gradient(to bottom, transparent, rgba(0, 206, 201, 0.4), transparent); opacity: 0.6; z-index: 2; pointer-events: none; animation: scan 3s linear infinite; }
-        @keyframes scan { 0% { top: -10px; } 100% { top: 100%; } }
+        /* 视频流区域 */
+        .video-wrapper { position: relative; width: 100%; border: 1px solid #00cec9; background: #000; padding: 2px;}
+        #stream-img { width: 100%; aspect-ratio: 4/3; object-fit: contain; display: block; filter: contrast(1.1) brightness(1.1);}
+        .scanline { position: absolute; top: 0; left: 0; width: 100%; height: 50px; background: linear-gradient(to bottom, transparent, rgba(0, 206, 201, 0.2), transparent); z-index: 2; pointer-events: none; animation: radarScan 4s linear infinite; border-bottom: 1px solid rgba(0,206,201,0.5);}
+        @keyframes radarScan { 0% { top: -50px; } 100% { top: 100%; } }
 
+        /* 传感器矩阵 (仪表盘风格) */
         .sensor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-        .sensor-box { background: rgba(10, 15, 26, 0.7); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 20px 15px; text-align: center; transition: all 0.3s; }
-        .sensor-icon { font-size: 28px; margin-bottom: 8px;}
-        .sensor-value { font-size: 26px; font-family: 'Orbitron', sans-serif; font-weight: 700; color: #fff; margin: 5px 0;}
-        .sensor-label { font-size: 12px; color: #8395a7;}
+        .sensor-box { background: rgba(0, 206, 201, 0.03); border: 1px solid rgba(0, 206, 201, 0.15); padding: 15px; display: flex; flex-direction: column; justify-content: center; position: relative;}
+        .sensor-box::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px; background: #00cec9; opacity: 0.5;}
+        
+        .sensor-label { font-size: 11px; color: #00cec9; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; opacity: 0.8;}
+        .sensor-value { font-size: 28px; font-family: 'Share Tech Mono', monospace; color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); display: flex; align-items: baseline; gap: 5px;}
+        .sensor-unit { font-size: 12px; color: #8395a7; }
 
-        /* === 历史记录增强功能区 === */
-        .history-controls { display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px; }
-        .stats-bar { display: flex; gap: 10px; font-size: 12px; }
-        .stat-badge { background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); color: #a4b0be; display: flex; align-items: center; gap: 5px;}
-        .stat-badge span { color: #fff; font-weight: bold; font-family: 'Orbitron', sans-serif;}
-        .stat-badge.danger span { color: #ff4757; text-shadow: 0 0 5px #ff4757;}
+        /* === 终端代码风格的历史记录 === */
+        .history-controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+        .stats-bar { display: flex; justify-content: space-between; font-family: 'Share Tech Mono', monospace; font-size: 12px; color: #00cec9; border-bottom: 1px dashed rgba(0,206,201,0.3); padding-bottom: 8px;}
+        .stat-danger { color: #ff4757; text-shadow: 0 0 5px rgba(255,71,87,0.5);}
 
         .search-row { display: flex; gap: 10px; }
         .search-input {
-            flex-grow: 1; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(0, 206, 201, 0.3);
-            color: #fff; padding: 8px 15px; border-radius: 8px; font-size: 13px; outline: none; transition: border 0.3s;
+            flex-grow: 1; background: rgba(0, 206, 201, 0.05); border: 1px solid rgba(0, 206, 201, 0.3);
+            color: #00cec9; padding: 6px 10px; font-family: 'Share Tech Mono', monospace; font-size: 12px; outline: none;
         }
-        .search-input:focus { border-color: #00cec9; box-shadow: 0 0 10px rgba(0, 206, 201, 0.2); }
-        .search-input::placeholder { color: #576574; }
-        
-        .clear-btn { background: transparent; border: 1px solid #576574; color: #a4b0be; cursor: pointer; padding: 8px 15px; border-radius: 8px; font-size: 13px; transition: all 0.3s;}
-        .clear-btn:hover { background: rgba(255, 71, 87, 0.1); border-color: #ff4757; color: #ff4757; }
+        .search-input:focus { background: rgba(0, 206, 201, 0.1); border-color: #00cec9; box-shadow: 0 0 10px rgba(0, 206, 201, 0.2); }
+        .search-input::placeholder { color: rgba(0, 206, 201, 0.3); }
 
-        .history-container { flex-grow: 1; overflow-y: auto; max-height: 400px; padding-right: 5px; }
-        .history-container::-webkit-scrollbar { width: 4px; }
-        .history-container::-webkit-scrollbar-thumb { background: rgba(0, 206, 201, 0.5); border-radius: 3px; }
+        .history-container { flex-grow: 1; overflow-y: auto; max-height: 480px; padding-right: 5px; }
+        .history-container::-webkit-scrollbar { width: 2px; }
+        .history-container::-webkit-scrollbar-thumb { background: #00cec9; }
         
-        .history-item { background: rgba(0, 0, 0, 0.4); border-left: 4px solid #feca57; margin-bottom: 15px; padding: 15px; border-radius: 8px; position: relative; overflow: hidden; }
-        .history-item.emergency { border-left: 6px solid #ff0000; background: rgba(255, 0, 0, 0.1); }
-        .history-item.emergency::before { content: '🚨 消防极危'; position: absolute; right: -25px; top: 12px; background: #ff0000; color: #fff; font-size: 10px; padding: 2px 30px; transform: rotate(45deg); font-weight: bold;}
+        .history-item { border-left: 2px solid #feca57; margin-bottom: 15px; padding: 10px 15px; background: linear-gradient(90deg, rgba(254,202,87,0.1) 0%, transparent 100%); position: relative; }
+        .history-item.emergency { border-left: 2px solid #ff0000; background: linear-gradient(90deg, rgba(255,0,0,0.15) 0%, transparent 100%); }
         
-        .history-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 10px;}
-        .history-header-title { flex: 1; color: #feca57; font-size: 14px; font-weight: bold;}
-        .history-item.emergency .history-header-title { color: #ff4757; text-shadow: 0 0 5px rgba(255,0,0,0.3);}
-        .history-header-time { color: #8395a7; font-size: 11px; font-family: 'Orbitron', sans-serif;}
-        .history-img { width: 100%; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); display: block;}
-        .empty-tip { text-align: center; color: #576574; font-size: 13px; padding: 40px 0; font-style: italic;}
+        .history-header { display: flex; flex-direction: column; margin-bottom: 8px; font-family: 'Share Tech Mono', monospace;}
+        .history-header-time { color: #8395a7; font-size: 10px; margin-bottom: 4px;}
+        .history-header-title { color: #feca57; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;}
+        .history-item.emergency .history-header-title { color: #ff4757; text-shadow: 0 0 5px rgba(255,0,0,0.5);}
+        
+        .history-img { width: 100%; border: 1px solid rgba(255,255,255,0.1); filter: grayscale(20%); transition: filter 0.3s;}
+        .history-item:hover .history-img { filter: grayscale(0%); border-color: #00cec9;}
+        
+        .empty-tip { text-align: center; color: rgba(0,206,201,0.3); font-size: 12px; font-family: 'Share Tech Mono', monospace; padding: 40px 0; letter-spacing: 2px;}
 
         /* 分享提示 Toast */
         #toast {
-            visibility: hidden; min-width: 250px; background-color: #00cec9; color: #050b14;
-            text-align: center; border-radius: 30px; padding: 12px; position: fixed;
-            z-index: 1000; left: 50%; bottom: 30px; transform: translateX(-50%); font-weight: bold;
-            box-shadow: 0 5px 20px rgba(0, 206, 201, 0.5); opacity: 0; transition: opacity 0.5s, bottom 0.5s;
+            visibility: hidden; background-color: #00cec9; color: #000;
+            text-align: center; padding: 10px 20px; position: fixed; font-family: 'Share Tech Mono', monospace;
+            z-index: 1000; left: 50%; bottom: 30px; transform: translateX(-50%); font-weight: bold; text-transform: uppercase;
+            box-shadow: 0 0 20px rgba(0, 206, 201, 0.8); opacity: 0; transition: opacity 0.3s;
         }
-        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+        #toast.show { visibility: visible; opacity: 1; bottom: 40px; }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="title-box">
-            <div class="title">OMNI-VISION <span>大感知平台</span></div>
+            <div class="title">OMNI-VISION <span>SYS.CORE</span></div>
         </div>
         <div class="right-header">
             <div class="clock" id="live-clock">00:00:00</div>
-            <button class="action-btn" onclick="shareDashboard()">🔗 分享大屏</button>
+            <button class="action-btn" onclick="shareDashboard()">[ SHARE_LINK ]</button>
             <div class="status-badge">
                 <div id="status-dot" class="dot"></div>
-                <span id="status-text" style="color:#ff4757;">DISCONNECTED</span>
+                <span id="status-text" style="color:#ff4757;">SYS.OFFLINE</span>
             </div>
         </div>
     </div>
 
     <div class="dashboard">
         <div class="card">
-            <div class="section-title">📡 现场实况监测节点</div>
-            <div id="emergency-banner">⚠️ 系统紧急通报：<span id="emergency-text"></span></div>
+            <div class="card-inner-corner1"></div>
+            <div class="card-inner-corner2"></div>
+            <div class="section-title">CAM_FEED // LIVE <span>[NODE_01_ACTIVE]</span></div>
+            
+            <div id="emergency-banner">
+                [CRITICAL_WARNING]: <span id="emergency-text"></span>
+            </div>
+
             <div class="video-wrapper">
                 <div class="scanline"></div>
-                <img id="stream-img" src="" alt="等待节点视频流加密传输接入..." />
+                <img id="stream-img" src="" alt="AWAITING VIDEO STREAM DECRYPTION..." />
             </div>
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: 25px;">
+        <div style="display: flex; flex-direction: column; gap: 20px;">
             <div class="card" style="padding: 20px;">
+                <div class="card-inner-corner1"></div>
+                <div class="card-inner-corner2"></div>
+                <div class="section-title">SENSOR_ARRAY <span>[TELEMETRY]</span></div>
                 <div class="sensor-grid" style="margin: 0;">
-                    <div class="sensor-box"><div class="sensor-icon">🌡️</div><div class="sensor-value" id="val-temp">-- ℃</div><div class="sensor-label">环境温度</div></div>
-                    <div class="sensor-box"><div class="sensor-icon">💧</div><div class="sensor-value" id="val-humi">-- %</div><div class="sensor-label">空气湿度</div></div>
-                    <div class="sensor-box"><div class="sensor-icon">💨</div><div class="sensor-value" id="val-mq2">--</div><div class="sensor-label" id="label-mq2">VOCs / 烟雾指数</div></div>
-                    <div class="sensor-box"><div class="sensor-icon" id="icon-ir">🛡️</div><div class="sensor-value" id="val-ir" style="font-size: 18px;">--</div><div class="sensor-label">防区状态</div></div>
+                    <div class="sensor-box">
+                        <div class="sensor-label">TEMP_CORE</div>
+                        <div class="sensor-value" id="val-temp">-- <span class="sensor-unit">°C</span></div>
+                    </div>
+                    <div class="sensor-box">
+                        <div class="sensor-label">HUMIDITY</div>
+                        <div class="sensor-value" id="val-humi">-- <span class="sensor-unit">%</span></div>
+                    </div>
+                    <div class="sensor-box">
+                        <div class="sensor-label" id="label-mq2">VOC_SMOKE_LVL</div>
+                        <div class="sensor-value" id="val-mq2">--</div>
+                    </div>
+                    <div class="sensor-box">
+                        <div class="sensor-label">PIR_SECURE_ZONE</div>
+                        <div class="sensor-value" id="val-ir" style="font-size: 22px;">--</div>
+                    </div>
                 </div>
             </div>
 
             <div class="card" style="flex-grow: 1;">
-                <div class="section-title">📁 异常事件智搜归档</div>
+                <div class="card-inner-corner1"></div>
+                <div class="card-inner-corner2"></div>
+                <div class="section-title">INCIDENT_LOGS <span>[DB_ARCHIVE]</span></div>
                 
                 <div class="history-controls">
                     <div class="stats-bar">
-                        <div class="stat-badge">总保留日志: <span id="stat-total">0</span></div>
-                        <div class="stat-badge danger">消防极危: <span id="stat-fire">0</span></div>
+                        <span>TOTAL_LOGS: <span id="stat-total" style="color:#fff;">0</span></span>
+                        <span class="stat-danger">CRITICAL_FIRE: <span id="stat-fire" style="color:#fff;">0</span></span>
                     </div>
                     <div class="search-row">
-                        <input type="text" id="search-input" class="search-input" placeholder="🔍 输入 '烟雾'、'溢满' 或 时间 进行过滤..." oninput="renderHistory()">
-                        <button class="clear-btn" onclick="clearHistory()">🗑️ 清空</button>
+                        <input type="text" id="search-input" class="search-input" placeholder="> QUERY_DB (e.g. 异常, 溢满)..." oninput="renderHistory()">
+                        <button class="action-btn" onclick="clearHistory()" style="padding: 6px 10px;">[ PURGE ]</button>
                     </div>
                 </div>
 
                 <div class="history-container" id="history-container">
-                    <div class="empty-tip">监控矩阵无异常记录</div>
+                    <div class="empty-tip">> NO_RECORDS_FOUND</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="toast">复制成功！快发给老师看看吧~</div>
+    <div id="toast">LINK_COPIED_TO_CLIPBOARD</div>
 
     <script>
         // 时钟逻辑
         setInterval(() => {
             const now = new Date();
-            document.getElementById('live-clock').innerText = now.toLocaleTimeString('en-US', { hour12: false });
-        }, 1000);
+            const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+            const ms = Math.floor(now.getMilliseconds() / 10).toString().padStart(2, '0');
+            document.getElementById('live-clock').innerText = `${timeStr}:${ms}`;
+        }, 50);
 
         const BASE_TOPIC = "2428510019ljz";
         const BROKER = "broker.emqx.io";
@@ -199,11 +242,11 @@
 
         renderHistory();
 
-        const client = new Paho.MQTT.Client(BROKER, PORT, "OV_Web_" + Math.random().toString(16).substr(2, 8));
+        const client = new Paho.MQTT.Client(BROKER, PORT, "OV_FUI_" + Math.random().toString(16).substr(2, 8));
 
         function onConnect() {
             dot.classList.add("active");
-            statusText.innerText = "DATA LINK ACTIVE";
+            statusText.innerText = "SYS.ONLINE // DATA_LINK_SECURE";
             statusText.style.color = "#00ff88";
             client.subscribe(BASE_TOPIC + "/stream");
             client.subscribe(BASE_TOPIC + "/alert");
@@ -235,77 +278,78 @@
 
         function updateSensors(data) {
             if(data.temp !== undefined) {
-                document.getElementById("val-temp").innerHTML = data.temp + ' <span style="font-size:14px">℃</span>';
+                const el = document.getElementById("val-temp");
+                el.innerHTML = data.temp + ' <span class="sensor-unit">°C</span>';
+                if(data.temp >= 40.0) { el.style.color = "#ff4757"; el.style.textShadow = "0 0 15px #ff4757"; } 
+                else { el.style.color = "#fff"; el.style.textShadow = "0 0 10px rgba(255,255,255,0.5)"; }
             }
             if(data.humi !== undefined) {
-                document.getElementById("val-humi").innerHTML = data.humi + ' <span style="font-size:14px">%</span>';
+                const el = document.getElementById("val-humi");
+                el.innerHTML = data.humi + ' <span class="sensor-unit">%</span>';
+                if(data.humi <= 20.0) { el.style.color = "#ff4757"; el.style.textShadow = "0 0 15px #ff4757"; } 
+                else { el.style.color = "#fff"; el.style.textShadow = "0 0 10px rgba(255,255,255,0.5)"; }
             }
             if(data.mq2 !== undefined) {
                 const elMq2 = document.getElementById("val-mq2");
                 const labelMq2 = document.getElementById("label-mq2");
                 elMq2.innerText = data.mq2;
                 if(data.mq2 > 600) {
-                    elMq2.style.color = "#ff4757"; labelMq2.innerText = "🔥 气体超标警报"; labelMq2.style.color = "#ff4757";
+                    elMq2.style.color = "#ff4757"; elMq2.style.textShadow = "0 0 15px #ff4757";
+                    labelMq2.innerText = "CRITICAL_SMOKE_LVL"; labelMq2.style.color = "#ff4757";
                 } else {
-                    elMq2.style.color = "#fff"; labelMq2.innerText = "VOCs / 烟雾指数"; labelMq2.style.color = "#8395a7";
+                    elMq2.style.color = "#fff"; elMq2.style.textShadow = "0 0 10px rgba(255,255,255,0.5)";
+                    labelMq2.innerText = "VOC_SMOKE_LVL"; labelMq2.style.color = "#00cec9";
                 }
             }
             if(data.ir !== undefined) {
                 const elIr = document.getElementById("val-ir");
-                const iconIr = document.getElementById("icon-ir");
                 if(data.ir === 0) {
-                    elIr.innerText = "活动入侵"; elIr.style.color = "#feca57"; iconIr.innerText = "🚶";
+                    elIr.innerText = "[ INTRUSION ]"; elIr.style.color = "#feca57"; elIr.style.textShadow = "0 0 10px #feca57";
                 } else {
-                    elIr.innerText = "防区安全"; elIr.style.color = "#00cec9"; iconIr.innerText = "🛡️";
+                    elIr.innerText = "[ SECURE ]"; elIr.style.color = "#00ff88"; elIr.style.textShadow = "0 0 10px #00ff88";
                 }
             }
         }
 
         function addNewAlert(data) {
             const timestamp = new Date(data.timestamp * 1000).toLocaleString('en-US', {hour12: false});
-            const alertText = data.msg || "检测到异常"; 
+            const alertText = data.msg || "UNKNOWN_ANOMALY"; 
             const isEmergency = alertText.includes("异常");
             const newRecord = { time: timestamp, img: data.image, msg: alertText, isEmergency: isEmergency, id: Date.now() };
             
             alertHistory.unshift(newRecord);
-            // 扩大存储容量至 50 条，以便测试搜索功能
             if (alertHistory.length > 50) alertHistory = alertHistory.slice(0, 50);
             localStorage.setItem('my_alert_history', JSON.stringify(alertHistory));
             renderHistory();
         }
 
-        // === 增强版渲染函数 (带检索与统计) ===
         function renderHistory() {
-            // 1. 更新统计徽章
             const total = alertHistory.length;
             const fireCount = alertHistory.filter(item => item.isEmergency).length;
-            document.getElementById('stat-total').innerText = total;
-            document.getElementById('stat-fire').innerText = fireCount;
+            document.getElementById('stat-total').innerText = total.toString().padStart(3, '0');
+            document.getElementById('stat-fire').innerText = fireCount.toString().padStart(3, '0');
 
-            // 2. 搜索过滤逻辑
             const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
             const filteredHistory = alertHistory.filter(item => {
                 return item.msg.toLowerCase().includes(searchTerm) || item.time.includes(searchTerm);
             });
 
-            // 3. 渲染 DOM
             if (filteredHistory.length === 0) {
-                if(total === 0) container.innerHTML = '<div class="empty-tip">监控矩阵无异常记录</div>';
-                else container.innerHTML = '<div class="empty-tip">没有找到符合关键字的记录</div>';
+                container.innerHTML = '<div class="empty-tip">> NO_RECORDS_FOUND</div>';
                 return;
             }
             
             container.innerHTML = '';
             filteredHistory.forEach((item) => {
                 const emergencyClass = item.isEmergency ? "emergency" : "";
-                const icon = item.isEmergency ? "🔥" : "⚠️";
+                const prefix = item.isEmergency ? "[FIRE]" : "[WARN]";
                 
                 const div = document.createElement('div');
                 div.className = `history-item ${emergencyClass}`;
                 div.innerHTML = `
                     <div class="history-header">
-                        <span class="history-header-title">${icon} ${item.msg}</span>
-                        <span class="history-header-time">${item.time}</span>
+                        <span class="history-header-time">> TS: ${item.time}</span>
+                        <span class="history-header-title">${prefix} ${item.msg}</span>
                     </div>
                     <img class="history-img" src="data:image/jpeg;base64,${item.img}" />
                 `;
@@ -314,39 +358,31 @@
         }
 
         function clearHistory() {
-            if(confirm('系统警告：是否清除本地存储的所有异常日志？')) {
+            if(confirm('SYS_WARN: INITIATE DATABASE PURGE?')) {
                 alertHistory = [];
                 localStorage.removeItem('my_alert_history');
-                document.getElementById('search-input').value = ''; // 清空搜索框
+                document.getElementById('search-input').value = '';
                 renderHistory();
             }
         }
 
-        // === 一键分享功能 ===
         function shareDashboard() {
             const url = window.location.href;
-            const title = 'OMNI-VISION 智慧环卫总控中心大屏';
-
-            // 尝试调用移动端原生分享功能
             if (navigator.share) {
-                navigator.share({ title: title, url: url })
-                .catch(console.error);
+                navigator.share({ title: 'OMNI-VISION HUD', url: url }).catch(console.error);
             } else {
-                // PC 端降级为复制到剪贴板
                 navigator.clipboard.writeText(url).then(() => {
                     const toast = document.getElementById("toast");
                     toast.className = "show";
                     setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 3000);
-                }).catch(err => {
-                    alert('复制失败，请手动复制浏览器地址栏链接。');
-                });
+                }).catch(err => { alert('CLIPBOARD_ACCESS_DENIED'); });
             }
         }
 
         client.onConnectionLost = (e) => { 
             if(e.errorCode !== 0) {
-                statusText.innerText = "LINK LOST";
-                statusText.style.color = "#feca57";
+                statusText.innerText = "SYS.ERR // LINK_LOST";
+                statusText.style.color = "#ff4757";
                 dot.classList.remove("active");
             }
         };
