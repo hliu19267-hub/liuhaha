@@ -6,7 +6,6 @@
     <title>智慧城市·垃圾监测大屏 PRO</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
-        /* === 极致科幻风样式 === */
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -42,11 +41,20 @@
         .section-title { font-size: 18px; color: #fff; margin-bottom: 20px; font-weight: 600; display: flex; align-items: center;}
         .section-title span { color: #00cec9; margin-right: 10px; font-size: 20px;}
 
+        /* === 【新增】消防紧急状态栏样式 === */
+        #emergency-banner {
+            display: none; /* 默认隐藏 */
+            background: #ff4757; color: white; padding: 12px 20px; 
+            text-align: center; font-weight: bold; border-radius: 12px; 
+            margin-bottom: 15px; font-size: 18px; 
+            box-shadow: 0 0 20px rgba(255, 71, 87, 0.8);
+            animation: emergency-blink 0.8s infinite alternate;
+        }
+        @keyframes emergency-blink { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0.85; transform: scale(0.98); } }
+
         .video-container { position: relative; width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0, 206, 201, 0.2); }
         #stream-img { width: 100%; aspect-ratio: 4/3; background: #000; object-fit: contain; display: block;}
-        .video-overlay { position: absolute; top: 15px; right: 15px; background: rgba(255, 71, 87, 0.8); color: white; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; animation: blink 2s infinite; display: none;}
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-
+        
         .sensor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
         .sensor-box {
             background: linear-gradient(145deg, rgba(26, 32, 53, 0.9), rgba(16, 22, 36, 0.9));
@@ -66,9 +74,9 @@
             background: rgba(255, 71, 87, 0.05); border-left: 4px solid #ff4757; margin-bottom: 15px; padding: 15px;
             border-radius: 8px; transition: all 0.3s;
         }
-        .history-item:hover { background: rgba(255, 71, 87, 0.1); transform: translateX(5px); }
+        /* 针对环境报警的特殊样式 */
+        .history-item.emergency { background: rgba(255, 0, 0, 0.2); border-left: 6px solid #ff0000; }
         
-        /* 修改了标题行的排版布局，防止动态 AI 文字过长撑破边框 */
         .history-header { display: flex; justify-content: space-between; color: #ff6b81; font-size: 14px; margin-bottom: 10px; font-weight: bold; align-items: flex-start; gap: 10px;}
         .history-header-title { flex: 1; word-break: break-word; line-height: 1.4; color: #feca57;}
         .history-header-time { white-space: nowrap; color: #a4b0be; font-size: 12px; margin-top: 2px;}
@@ -95,8 +103,12 @@
     <div class="dashboard">
         <div class="card">
             <div class="section-title"><span>📷</span> 现场实时监控网络 (LIVE)</div>
+            
+            <div id="emergency-banner">
+                🚨 系统紧急警告：<span id="emergency-text"></span>
+            </div>
+
             <div class="video-container">
-                <div id="alert-badge" class="video-overlay">⚠️ 画面异常</div>
                 <img id="stream-img" src="" alt="等待节点视频流接入..." />
             </div>
         </div>
@@ -130,7 +142,7 @@
 
             <div class="card" style="flex-grow: 1;">
                 <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                    <div class="section-title" style="margin: 0;"><span>🚨</span> 溢满抓拍归档</div>
+                    <div class="section-title" style="margin: 0;"><span>🚨</span> 异常抓拍归档</div>
                     <button class="clear-btn" onclick="clearHistory()">清除日志</button>
                 </div>
                 <div class="history-container" id="history-container">
@@ -151,9 +163,11 @@
         const streamImg = document.getElementById("stream-img");
         const dot = document.getElementById("status-dot");
         const statusText = document.getElementById("status-text");
-        const alertBadge = document.getElementById("alert-badge");
+        
+        // 【新增】紧急状态栏 DOM
+        const emergencyBanner = document.getElementById("emergency-banner");
+        const emergencyText = document.getElementById("emergency-text");
 
-        // 传感器 DOM 节点
         const elTemp = document.getElementById("val-temp");
         const elHumi = document.getElementById("val-humi");
         const elMq2 = document.getElementById("val-mq2");
@@ -174,7 +188,8 @@
             client.subscribe(BASE_TOPIC + "/sensor"); 
         }
 
-        let alertTimeout = null;
+        let emergencyTimeout = null;
+
         function onMessageArrived(message) {
             const topic = message.destinationName;
             const payload = JSON.parse(message.payloadString);
@@ -184,10 +199,18 @@
             } 
             else if (topic.includes("/alert")) {
                 addNewAlert(payload);
-                // 触发视频右上角警告闪烁动画
-                alertBadge.style.display = "block";
-                clearTimeout(alertTimeout);
-                alertTimeout = setTimeout(() => { alertBadge.style.display = "none"; }, 5000);
+                
+                // 【核心逻辑】：如果是环境异常（包含“异常”两个字），触发顶部通报栏！
+                if (payload.msg && payload.msg.includes("异常")) {
+                    emergencyText.innerHTML = payload.msg;
+                    emergencyBanner.style.display = "block";
+                    
+                    // 15秒后自动隐藏该横幅
+                    clearTimeout(emergencyTimeout);
+                    emergencyTimeout = setTimeout(() => {
+                        emergencyBanner.style.display = "none";
+                    }, 15000);
+                }
             }
             else if (topic.includes("/sensor")) {
                 updateSensors(payload);
@@ -195,9 +218,16 @@
         }
 
         function updateSensors(data) {
-            if(data.temp !== undefined) elTemp.innerText = data.temp + " ℃";
-            if(data.humi !== undefined) elHumi.innerText = data.humi + " %";
-            
+            if(data.temp !== undefined) {
+                elTemp.innerText = data.temp + " ℃";
+                if(data.temp >= 40.0) { elTemp.style.color = "#ff4757"; elTemp.style.textShadow = "0 0 10px #ff4757"; } 
+                else { elTemp.style.color = "#fff"; elTemp.style.textShadow = "none"; }
+            }
+            if(data.humi !== undefined) {
+                elHumi.innerText = data.humi + " %";
+                if(data.humi <= 20.0) { elHumi.style.color = "#ff4757"; elHumi.style.textShadow = "0 0 10px #ff4757"; } 
+                else { elHumi.style.color = "#fff"; elHumi.style.textShadow = "none"; }
+            }
             if(data.mq2 !== undefined) {
                 elMq2.innerText = data.mq2;
                 if(data.mq2 > 600) {
@@ -208,7 +238,6 @@
                     labelMq2.innerText = "VOCs / 烟雾";
                 }
             }
-
             if(data.ir !== undefined) {
                 if(data.ir === 0) {
                     elIr.innerText = "活动侵入"; elIr.style.color = "#eccc68";
@@ -222,12 +251,14 @@
 
         function addNewAlert(data) {
             const timestamp = new Date(data.timestamp * 1000).toLocaleString();
-            // 【核心修改】：提取 Python 传过来的动态文字，如果没有则兜底显示“溢满确证”
             const alertText = data.msg || "溢满确证"; 
-            const newRecord = { time: timestamp, img: data.image, msg: alertText, id: Date.now() };
+            
+            // 标记是否为消防紧急事件
+            const isEmergency = alertText.includes("异常");
+            const newRecord = { time: timestamp, img: data.image, msg: alertText, isEmergency: isEmergency, id: Date.now() };
             
             alertHistory.unshift(newRecord);
-            if (alertHistory.length > 10) alertHistory = alertHistory.slice(0, 10);
+            if (alertHistory.length > 20) alertHistory = alertHistory.slice(0, 20);
             localStorage.setItem('my_alert_history', JSON.stringify(alertHistory));
             renderHistory();
         }
@@ -239,10 +270,12 @@
             }
             container.innerHTML = '';
             alertHistory.forEach((item, index) => {
-                // 读取动态文字
                 const displayMsg = item.msg ? item.msg : "溢满确证";
+                // 如果是紧急事件，应用特殊的闪烁边框样式
+                const emergencyClass = item.isEmergency ? "emergency" : "";
+                
                 const div = document.createElement('div');
-                div.className = 'history-item';
+                div.className = `history-item ${emergencyClass}`;
                 div.innerHTML = `
                     <div class="history-header">
                         <span class="history-header-title">#${index + 1} ⚠️ ${displayMsg}</span>
