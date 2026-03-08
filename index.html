@@ -6,37 +6,12 @@
     <title>🌟 智能环卫小管家 🌟</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
-        /* 导入可爱的中文字体（站酷快乐体）和圆润的英文字体 */
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&family=ZCOOL+KuaiLe&display=swap');
-        
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Nunito', 'ZCOOL KuaiLe', cursive, sans-serif; background-color: #fce4ec; background-image: radial-gradient(#f8bbd0 2px, transparent 2px); background-size: 30px 30px; color: #2d3436; min-height: 100vh; padding: 20px; overflow-x: hidden; }
         
-        body {
-            font-family: 'Nunito', 'ZCOOL KuaiLe', cursive, sans-serif;
-            background-color: #fce4ec; /* 甜美的淡粉色背景 */
-            /* 可爱的波点背景 */
-            background-image: radial-gradient(#f8bbd0 2px, transparent 2px);
-            background-size: 30px 30px;
-            color: #2d3436; /* 柔软的炭黑色，代替死板的纯黑 */
-            min-height: 100vh; padding: 20px; overflow-x: hidden;
-        }
-        
-        /* === 卡通风格通用的“粗边硬阴影”类 === */
-        .cartoon-box {
-            background-color: #ffffff;
-            border: 4px solid #2d3436;
-            border-radius: 24px;
-            box-shadow: 6px 6px 0px #2d3436;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        
-        /* === 顶部导航栏 === */
-        .header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 25px; padding: 15px 30px;
-            background-color: #fff;
-        }
-        
+        .cartoon-box { background-color: #ffffff; border: 4px solid #2d3436; border-radius: 24px; box-shadow: 6px 6px 0px #2d3436; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding: 15px 30px; background-color: #fff; }
         .title-box { display: flex; align-items: center; gap: 10px;}
         .title { font-size: 30px; font-weight: 900; color: #0984e3; letter-spacing: 2px;}
         .title span { color: #fd79a8; }
@@ -49,67 +24,43 @@
         .dot.active { background-color: #55efc4; animation: bounce 1s infinite alternate; }
         @keyframes bounce { 0% { transform: translateY(0); } 100% { transform: translateY(-4px); } }
 
-        /* 卡通按钮，按下时会变扁 */
-        .action-btn {
-            background: #ffeaa7; border: 3px solid #2d3436; color: #2d3436;
-            padding: 8px 18px; font-size: 16px; font-weight: bold; cursor: pointer;
-            border-radius: 18px; box-shadow: 4px 4px 0px #2d3436;
-            transition: all 0.1s; font-family: inherit;
-        }
+        .action-btn { background: #ffeaa7; border: 3px solid #2d3436; color: #2d3436; padding: 8px 18px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 18px; box-shadow: 4px 4px 0px #2d3436; transition: all 0.1s; font-family: inherit; }
         .action-btn:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px #2d3436; }
 
         .dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 25px; }
-
         .card { padding: 25px; position: relative; }
-
         .section-title { font-size: 22px; color: #2d3436; margin-bottom: 20px; font-weight: 900; display: flex; justify-content: space-between; align-items: center;}
         .section-title span { font-size: 14px; color: #636e72; background: #eee; padding: 4px 10px; border-radius: 12px; border: 2px solid #2d3436;}
 
-        /* === Q弹的消防预警栏 === */
-        #emergency-banner {
-            display: none; background: #ff7675; color: #fff; padding: 15px 20px; 
-            text-align: center; font-weight: 900; margin-bottom: 20px; font-size: 20px; 
-            border: 4px solid #2d3436; border-radius: 20px; box-shadow: 6px 6px 0px #d63031;
-            animation: wobble 1s ease-in-out infinite;
-        }
+        #emergency-banner { display: none; background: #ff7675; color: #fff; padding: 15px 20px; text-align: center; font-weight: 900; margin-bottom: 20px; font-size: 20px; border: 4px solid #2d3436; border-radius: 20px; box-shadow: 6px 6px 0px #d63031; animation: wobble 1s ease-in-out infinite; }
         @keyframes wobble { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); scale(1.02);} }
 
-        /* 视频监控像个复古小电视 */
         .video-wrapper { position: relative; width: 100%; border-radius: 20px; border: 5px solid #2d3436; overflow: hidden; background: #ffeaa7; box-shadow: inset 0 0 20px rgba(0,0,0,0.1);}
         #stream-img { width: 100%; aspect-ratio: 4/3; object-fit: contain; display: block; border-radius: 15px;}
-        /* 电视反光效果 */
-        .glass-glare { position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.2) 45%, rgba(255,255,255,0.4) 50%, transparent 55%); pointer-events: none; z-index: 2; transform: rotate(15deg);}
-
-        /* ================= 【新增】手动遥控器样式 ================= */
-        .remote-control {
-            margin-top: 20px;
-            padding: 15px 20px;
-            background: #e0f7fa;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        
+        .remote-control { margin-top: 20px; padding: 15px 20px; background: #e0f7fa; display: flex; justify-content: space-between; align-items: center; }
         .remote-title { font-weight: 900; font-size: 18px; color: #0097e6; display: flex; align-items: center; gap: 8px;}
         .led-btn { background: #dfe6e9; color: #2d3436; width: 130px; text-align: center;}
-        .led-btn.on { background: #fdcb6e; color: #2d3436; } /* 开灯时的明亮黄色 */
-        /* ======================================================== */
+        .led-btn.on { background: #fdcb6e; color: #2d3436; } 
 
-        /* 糖果色传感器矩阵 */
         .sensor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
         .sensor-box { padding: 20px 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 20px; border: 4px solid #2d3436; box-shadow: 4px 4px 0px #2d3436; position: relative;}
-        /* 给每个传感器分配不同的马卡龙色 */
+        
+        /* 🎯 专为光敏环境打造的长条卡片，横跨两列 */
+        .box-light-env { grid-column: span 2; background-color: #81ecec; flex-direction: row; gap: 15px; padding: 15px; }
+        .box-light-env .sensor-icon { font-size: 45px; margin-bottom: 0; }
+        .box-light-env .sensor-info { display: flex; flex-direction: column; align-items: flex-start; }
+        
         .box-temp { background-color: #ffadad; }
         .box-humi { background-color: #a0c4ff; }
         .box-mq2  { background-color: #caffbf; }
         .box-ir   { background-color: #fdffb6; }
         
-        .sensor-box:hover { transform: translateY(-3px); }
         .sensor-icon { font-size: 40px; margin-bottom: 5px; filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.2));}
         .sensor-label { font-size: 16px; color: #2d3436; font-weight: 900; margin-bottom: 2px;}
         .sensor-value { font-size: 32px; font-family: 'Nunito', sans-serif; font-weight: 900; color: #fff; text-shadow: 2px 2px 0px #2d3436;}
         .sensor-unit { font-size: 16px; }
 
-        /* 历史记录区像个手帐本 */
         .history-controls { display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px; }
         .stats-bar { display: flex; gap: 10px; justify-content: flex-start;}
         .stat-badge { background: #81ecec; border: 3px solid #2d3436; padding: 5px 12px; border-radius: 15px; font-weight: bold; box-shadow: 3px 3px 0px #2d3436; font-size: 14px;}
@@ -117,53 +68,17 @@
 
         .search-row { display: flex; gap: 10px; }
         .search-input { flex-grow: 1; background: #fff; border: 3px solid #2d3436; border-radius: 15px; padding: 10px 15px; font-size: 16px; font-family: inherit; font-weight: bold; box-shadow: inset 2px 2px 5px rgba(0,0,0,0.05);}
-        .search-input:focus { outline: none; border-color: #0984e3; background: #e3f2fd;}
-
         .history-container { flex-grow: 1; overflow-y: auto; max-height: 480px; padding-right: 10px; }
-        .history-container::-webkit-scrollbar { width: 8px; }
-        .history-container::-webkit-scrollbar-thumb { background: #2d3436; border-radius: 10px; border: 2px solid #fff;}
-        
         .history-item { background: #fff; border: 4px solid #2d3436; border-radius: 18px; margin-bottom: 15px; padding: 15px; box-shadow: 4px 4px 0px #2d3436; position: relative;}
-        .history-item.emergency { background: #ffeaa7; border-color: #d63031; box-shadow: 4px 4px 0px #d63031;}
-        .history-item.emergency::after { content: '🚨 紧急!'; position: absolute; top: -15px; right: 10px; background: #ff7675; color: #fff; padding: 5px 10px; border-radius: 12px; border: 3px solid #2d3436; font-size: 12px; font-weight: bold; transform: rotate(5deg);}
-        
         .history-header { display: flex; flex-direction: column; margin-bottom: 10px;}
         .history-header-time { color: #636e72; font-size: 14px; font-weight: bold;}
         .history-header-title { color: #2d3436; font-size: 18px; font-weight: 900;}
-        
         .history-img { width: 100%; border: 3px solid #2d3436; border-radius: 12px; background: #dfe6e9;}
         .empty-tip { text-align: center; color: #636e72; font-size: 18px; padding: 40px 0; font-weight: bold;}
 
-        #toast {
-            visibility: hidden; background-color: #55efc4; color: #2d3436; border: 4px solid #2d3436;
-            text-align: center; padding: 15px 30px; position: fixed; z-index: 1000; left: 50%; bottom: 30px; transform: translateX(-50%); 
-            font-weight: 900; font-size: 18px; box-shadow: 6px 6px 0px #2d3436; border-radius: 30px; opacity: 0; transition: all 0.3s;
-        }
-        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
-
-        /* ========================================================
-           📱 手机端深度适配 📱
-           ======================================================== */
         @media (max-width: 800px) {
-            body { padding: 10px; }
-            .header { flex-direction: column; gap: 15px; padding: 20px; text-align: center; }
-            .title { font-size: 26px; }
-            .right-header { flex-wrap: wrap; justify-content: center; gap: 10px; width: 100%;}
-            .clock { font-size: 20px; width: 100%; text-align: center;}
             .dashboard { grid-template-columns: 1fr; gap: 20px; }
-            .card { padding: 15px;}
-            .sensor-grid { gap: 10px;}
-            .sensor-box { padding: 15px 5px; }
-            .sensor-icon { font-size: 32px; }
-            .sensor-value { font-size: 26px; }
-            .sensor-label { font-size: 12px; }
-            .history-container { max-height: 400px; }
-            .stats-bar { flex-wrap: wrap;}
-            .search-row { flex-direction: column; }
-            .search-input { width: 100%; }
-            .action-btn { width: 100%; justify-content: center; padding: 12px;}
-            .remote-control { flex-direction: column; gap: 15px; }
-            .led-btn { width: 100%; }
+            .box-light-env { grid-column: 1; }
         }
     </style>
 </head>
@@ -174,7 +89,6 @@
         </div>
         <div class="right-header">
             <div class="clock" id="live-clock">00:00:00</div>
-            <button class="action-btn" style="background: #a0c4ff;" onclick="shareDashboard()">🔗 分享给小伙伴</button>
             <div class="status-badge">
                 <div id="status-dot" class="dot"></div>
                 <span id="status-text" style="color:#d63031;">正在睡觉 (离线)</span>
@@ -185,27 +99,33 @@
     <div class="dashboard">
         <div class="card cartoon-box">
             <div class="section-title">📺 现场实况小电视 <span>[1号位在线]</span></div>
-            
-            <div id="emergency-banner">
-                😱 哇！发现大情况啦：<br><span id="emergency-text" style="color:#ffeaa7;"></span>
-            </div>
-
+            <div id="emergency-banner">😱 哇！发现大情况啦：<br><span id="emergency-text" style="color:#ffeaa7;"></span></div>
             <div class="video-wrapper">
-                <div class="glass-glare"></div>
                 <img id="stream-img" src="" alt="等待视频信号接入哦..." />
             </div>
 
             <div class="remote-control cartoon-box">
-                <div class="remote-title">💡 补光灯遥控器 <span style="font-size: 12px; color:#636e72; font-weight:normal;">(接管自动感应)</span></div>
-                <button id="led-toggle-btn" class="action-btn led-btn" onclick="toggleLED()">开启补光</button>
+                <div class="remote-title">💡 补光遥控器</div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="led-auto-btn" class="action-btn" style="background:#a0c4ff;" onclick="setLedMode('AUTO')">自动感应</button>
+                    <button id="led-toggle-btn" class="action-btn led-btn" onclick="setLedMode('MANUAL')">开启长亮</button>
+                </div>
             </div>
-            </div>
+        </div>
 
         <div style="display: flex; flex-direction: column; gap: 20px;">
             <div class="card cartoon-box" style="padding: 20px;">
                 <div class="section-title">🎈 环境数据泡泡 <span>[实时]</span></div>
                 
                 <div class="sensor-grid">
+                    <div class="sensor-box box-light-env" id="card-light">
+                        <div class="sensor-icon" id="icon-light">☀️</div>
+                        <div class="sensor-info">
+                            <div class="sensor-label" style="font-size: 18px;">环境光照评价</div>
+                            <div class="sensor-value" id="val-light" style="font-size: 26px;">阳光明媚 (正常)</div>
+                        </div>
+                    </div>
+
                     <div class="sensor-box box-temp">
                         <div class="sensor-icon">🌡️</div>
                         <div class="sensor-label">气温</div>
@@ -213,7 +133,7 @@
                     </div>
                     <div class="sensor-box box-humi">
                         <div class="sensor-icon">💧</div>
-                        <div class="sensor-label">湿度水滴</div>
+                        <div class="sensor-label">湿度</div>
                         <div class="sensor-value" id="val-humi">-- <span class="sensor-unit">%</span></div>
                     </div>
                     <div class="sensor-box box-mq2" id="card-mq2">
@@ -231,18 +151,12 @@
 
             <div class="card cartoon-box" style="flex-grow: 1;">
                 <div class="section-title">📓 异常事件手帐本 <span>[记录]</span></div>
-                
                 <div class="history-controls">
-                    <div class="stats-bar">
-                        <div class="stat-badge">📝 总记录: <span id="stat-total">0</span> 个</div>
-                        <div class="stat-badge danger">🔥 危险警报: <span id="stat-fire">0</span> 个</div>
-                    </div>
                     <div class="search-row">
                         <input type="text" id="search-input" class="search-input" placeholder="🔍 搜一搜 (比如: 烟雾, 溢满)..." oninput="renderHistory()">
                         <button class="action-btn" style="background: #ffadad;" onclick="clearHistory()">🗑️ 清空</button>
                     </div>
                 </div>
-
                 <div class="history-container" id="history-container">
                     <div class="empty-tip">🌸 今天也是平安无事的一天呢 🌸</div>
                 </div>
@@ -250,33 +164,26 @@
         </div>
     </div>
 
-    <div id="toast">✅ 复制成功啦！快去粘贴吧~</div>
-
     <script>
-        // 时钟逻辑
         setInterval(() => {
             const now = new Date();
-            const timeStr = now.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
-            document.getElementById('live-clock').innerText = timeStr;
+            document.getElementById('live-clock').innerText = now.toLocaleTimeString('zh-CN', { hour12: false });
         }, 1000);
 
         const BASE_TOPIC = "2428510019ljz";
         const BROKER = "broker.emqx.io";
         const PORT = 8084;
-        const CONTROL_LED_TOPIC = BASE_TOPIC + "/control/led"; // 【新增】LED 控制主题
+        const CONTROL_LED_TOPIC = BASE_TOPIC + "/control/led"; 
 
         let alertHistory = JSON.parse(localStorage.getItem('my_alert_history') || '[]');
-        let isLedOn = false; // 【新增】记录补光灯状态
+        let isLedOn = false; 
         
         const container = document.getElementById("history-container");
         const streamImg = document.getElementById("stream-img");
         const dot = document.getElementById("status-dot");
         const statusText = document.getElementById("status-text");
-        const emergencyBanner = document.getElementById("emergency-banner");
-        const emergencyText = document.getElementById("emergency-text");
 
         renderHistory();
-
         const client = new Paho.MQTT.Client(BROKER, PORT, "OV_CUTE_" + Math.random().toString(16).substr(2, 8));
 
         function onConnect() {
@@ -288,8 +195,6 @@
             client.subscribe(BASE_TOPIC + "/sensor"); 
         }
 
-        let emergencyTimeout = null;
-
         function onMessageArrived(message) {
             const topic = message.destinationName;
             const payload = JSON.parse(message.payloadString);
@@ -299,12 +204,6 @@
             } 
             else if (topic.includes("/alert")) {
                 addNewAlert(payload);
-                if (payload.msg && payload.msg.includes("异常") || payload.msg.includes("火险") || payload.msg.includes("烟雾")) {
-                    emergencyText.innerHTML = payload.msg;
-                    emergencyBanner.style.display = "block";
-                    clearTimeout(emergencyTimeout);
-                    emergencyTimeout = setTimeout(() => { emergencyBanner.style.display = "none"; }, 15000);
-                }
             }
             else if (topic.includes("/sensor")) {
                 updateSensors(payload);
@@ -312,70 +211,62 @@
         }
 
         function updateSensors(data) {
-            if(data.temp !== undefined) {
-                const el = document.getElementById("val-temp");
-                const card = document.querySelector(".box-temp");
-                el.innerHTML = data.temp + ' <span class="sensor-unit">°C</span>';
-                if(data.temp >= 40.0) { card.style.background = "#ff7675"; el.style.color = "#2d3436"; } 
-                else { card.style.background = "#ffadad"; el.style.color = "#fff"; }
-            }
-            if(data.humi !== undefined) {
-                const el = document.getElementById("val-humi");
-                const card = document.querySelector(".box-humi");
-                el.innerHTML = data.humi + ' <span class="sensor-unit">%</span>';
-                if(data.humi <= 20.0) { card.style.background = "#ff7675"; el.style.color = "#2d3436"; } 
-                else { card.style.background = "#a0c4ff"; el.style.color = "#fff"; }
-            }
-            if(data.mq2 !== undefined) {
-                const elMq2 = document.getElementById("val-mq2");
-                const labelMq2 = document.getElementById("label-mq2");
-                const iconMq2 = document.getElementById("icon-mq2");
-                const cardMq2 = document.getElementById("card-mq2");
-                elMq2.innerText = data.mq2;
+            // 🎯 【核心逻辑】处理光线环境状态
+            if (data.is_dark !== undefined && data.led_on !== undefined) {
+                const elLight = document.getElementById("val-light");
+                const iconLight = document.getElementById("icon-light");
+                const cardLight = document.getElementById("card-light");
                 
-                if(data.mq2 > 600) {
-                    cardMq2.style.background = "#ff7675";
-                    labelMq2.innerText = "咳咳，空气很差！"; 
-                    iconMq2.innerText = "🔥";
+                if (data.is_dark === 1) {
+                    if (data.led_on === 1) {
+                        elLight.innerText = "正常 (已补光)";
+                        iconLight.innerText = "💡";
+                        cardLight.style.background = "#ffeaa7"; // 温馨的黄色
+                    } else {
+                        elLight.innerText = "太暗了！看不清";
+                        iconLight.innerText = "🌑";
+                        cardLight.style.background = "#ff7675"; // 红色警告
+                    }
                 } else {
-                    cardMq2.style.background = "#caffbf";
-                    labelMq2.innerText = "空气清新度"; 
-                    iconMq2.innerText = "🍃";
+                    elLight.innerText = "正常 (光线明亮)";
+                    iconLight.innerText = "☀️";
+                    cardLight.style.background = "#81ecec"; // 晴朗的蓝绿色
                 }
             }
+
+            // 更新温湿度和空气
+            if(data.temp !== undefined) document.getElementById("val-temp").innerHTML = data.temp + ' <span class="sensor-unit">°C</span>';
+            if(data.humi !== undefined) document.getElementById("val-humi").innerHTML = data.humi + ' <span class="sensor-unit">%</span>';
+            if(data.mq2 !== undefined) document.getElementById("val-mq2").innerText = data.mq2;
+            
             if(data.ir !== undefined) {
                 const elIr = document.getElementById("val-ir");
-                const iconIr = document.getElementById("icon-ir");
-                const labelIr = document.getElementById("label-ir");
-                const cardIr = document.getElementById("card-ir");
-                if(data.ir === 0) {
-                    elIr.innerText = "有人来啦"; 
-                    cardIr.style.background = "#ffeaa7";
-                    iconIr.innerText = "👀";
-                    labelIr.innerText = "小保安发现";
-                } else {
-                    elIr.innerText = "静悄悄"; 
-                    cardIr.style.background = "#fdffb6";
-                    iconIr.innerText = "😴";
-                    labelIr.innerText = "小保安打盹";
-                }
+                if(data.ir === 0) elIr.innerText = "有人来啦"; else elIr.innerText = "静悄悄"; 
             }
         }
 
-        // ================= 【新增】控制补光灯状态函数 =================
-        function toggleLED() {
+        function setLedMode(mode) {
             const btn = document.getElementById('led-toggle-btn');
             
-            isLedOn = !isLedOn;
+            if (mode === 'AUTO') {
+                btn.innerText = "开启长亮";
+                btn.classList.remove("on");
+                isLedOn = false;
+                sendMqttCommand("AUTO");
+                return;
+            }
             
-            if (isLedOn) {
-                btn.innerText = "关闭补光";
-                btn.classList.add("on"); // 添加高亮样式
-                sendMqttCommand("ON");
-            } else {
-                btn.innerText = "开启补光";
-                btn.classList.remove("on"); // 恢复默认样式
-                sendMqttCommand("OFF");
+            if (mode === 'MANUAL') {
+                isLedOn = !isLedOn;
+                if (isLedOn) {
+                    btn.innerText = "关闭长亮";
+                    btn.classList.add("on"); 
+                    sendMqttCommand("ON");
+                } else {
+                    btn.innerText = "开启长亮";
+                    btn.classList.remove("on"); 
+                    sendMqttCommand("OFF");
+                }
             }
         }
 
@@ -384,19 +275,12 @@
                 const message = new Paho.MQTT.Message(payload);
                 message.destinationName = CONTROL_LED_TOPIC;
                 client.send(message);
-            } catch (error) {
-                console.error("发送指令失败: ", error);
-                alert("糟糕，指令发送失败，看看是不是网络断了哦！");
-            }
+            } catch (error) {}
         }
-        // ==========================================================
 
         function addNewAlert(data) {
             const timestamp = new Date(data.timestamp * 1000).toLocaleString('zh-CN', {hour12: false});
-            const alertText = data.msg || "出现小状况"; 
-            const isEmergency = alertText.includes("异常") || alertText.includes("火险") || alertText.includes("烟雾");
-            const newRecord = { time: timestamp, img: data.image, msg: alertText, isEmergency: isEmergency, id: Date.now() };
-            
+            const newRecord = { time: timestamp, img: data.image, msg: data.msg, isEmergency: data.msg.includes("火险"), id: Date.now() };
             alertHistory.unshift(newRecord);
             if (alertHistory.length > 50) alertHistory = alertHistory.slice(0, 50);
             localStorage.setItem('my_alert_history', JSON.stringify(alertHistory));
@@ -404,69 +288,27 @@
         }
 
         function renderHistory() {
-            const total = alertHistory.length;
-            const fireCount = alertHistory.filter(item => item.isEmergency).length;
-            document.getElementById('stat-total').innerText = total;
-            document.getElementById('stat-fire').innerText = fireCount;
-
             const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
-            const filteredHistory = alertHistory.filter(item => {
-                return item.msg.toLowerCase().includes(searchTerm) || item.time.includes(searchTerm);
-            });
+            const filteredHistory = alertHistory.filter(item => item.msg.toLowerCase().includes(searchTerm) || item.time.includes(searchTerm));
 
             if (filteredHistory.length === 0) {
                 container.innerHTML = '<div class="empty-tip">🌸 今天也是平安无事的一天呢 🌸</div>';
                 return;
             }
-            
             container.innerHTML = '';
             filteredHistory.forEach((item) => {
-                const emergencyClass = item.isEmergency ? "emergency" : "";
-                const prefix = item.isEmergency ? "🙀 天呐：" : "🤔 提醒：";
-                
                 const div = document.createElement('div');
-                div.className = `history-item ${emergencyClass}`;
-                div.innerHTML = `
-                    <div class="history-header">
-                        <span class="history-header-time">🕒 记录时间: ${item.time}</span>
-                        <span class="history-header-title">${prefix} ${item.msg}</span>
-                    </div>
-                    <img class="history-img" src="data:image/jpeg;base64,${item.img}" />
-                `;
+                div.className = "history-item";
+                div.innerHTML = `<div class="history-header"><span class="history-header-time">🕒 ${item.time}</span><span class="history-header-title">📌 ${item.msg}</span></div><img class="history-img" src="data:image/jpeg;base64,${item.img}" />`;
                 container.appendChild(div);
             });
         }
 
         function clearHistory() {
-            if(confirm('🐾 要把所有的记录都擦掉吗？')) {
-                alertHistory = [];
-                localStorage.removeItem('my_alert_history');
-                document.getElementById('search-input').value = '';
-                renderHistory();
-            }
+            if(confirm('🐾 要把所有的记录都擦掉吗？')) { alertHistory = []; localStorage.removeItem('my_alert_history'); renderHistory(); }
         }
 
-        function shareDashboard() {
-            const url = window.location.href;
-            if (navigator.share) {
-                navigator.share({ title: '智能环卫小管家', url: url }).catch(console.error);
-            } else {
-                navigator.clipboard.writeText(url).then(() => {
-                    const toast = document.getElementById("toast");
-                    toast.className = "show";
-                    setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 3000);
-                }).catch(err => { alert('复制失败惹，请手动复制地址栏吧'); });
-            }
-        }
-
-        client.onConnectionLost = (e) => { 
-            if(e.errorCode !== 0) {
-                statusText.innerText = "睡着了 (已断开)";
-                statusText.style.color = "#d63031";
-                dot.classList.remove("active");
-            }
-        };
-
+        client.onConnectionLost = (e) => { dot.classList.remove("active"); };
         client.onMessageArrived = onMessageArrived;
         client.connect({ useSSL: true, onSuccess: onConnect, keepAliveInterval: 30 });
     </script>
