@@ -80,6 +80,20 @@
         /* 电视反光效果 */
         .glass-glare { position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.2) 45%, rgba(255,255,255,0.4) 50%, transparent 55%); pointer-events: none; z-index: 2; transform: rotate(15deg);}
 
+        /* ================= 【新增】手动遥控器样式 ================= */
+        .remote-control {
+            margin-top: 20px;
+            padding: 15px 20px;
+            background: #e0f7fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .remote-title { font-weight: 900; font-size: 18px; color: #0097e6; display: flex; align-items: center; gap: 8px;}
+        .led-btn { background: #dfe6e9; color: #2d3436; width: 130px; text-align: center;}
+        .led-btn.on { background: #fdcb6e; color: #2d3436; } /* 开灯时的明亮黄色 */
+        /* ======================================================== */
+
         /* 糖果色传感器矩阵 */
         .sensor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
         .sensor-box { padding: 20px 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 20px; border: 4px solid #2d3436; box-shadow: 4px 4px 0px #2d3436; position: relative;}
@@ -148,6 +162,8 @@
             .search-row { flex-direction: column; }
             .search-input { width: 100%; }
             .action-btn { width: 100%; justify-content: center; padding: 12px;}
+            .remote-control { flex-direction: column; gap: 15px; }
+            .led-btn { width: 100%; }
         }
     </style>
 </head>
@@ -178,7 +194,12 @@
                 <div class="glass-glare"></div>
                 <img id="stream-img" src="" alt="等待视频信号接入哦..." />
             </div>
-        </div>
+
+            <div class="remote-control cartoon-box">
+                <div class="remote-title">💡 补光灯遥控器 <span style="font-size: 12px; color:#636e72; font-weight:normal;">(接管自动感应)</span></div>
+                <button id="led-toggle-btn" class="action-btn led-btn" onclick="toggleLED()">开启补光</button>
+            </div>
+            </div>
 
         <div style="display: flex; flex-direction: column; gap: 20px;">
             <div class="card cartoon-box" style="padding: 20px;">
@@ -242,8 +263,10 @@
         const BASE_TOPIC = "2428510019ljz";
         const BROKER = "broker.emqx.io";
         const PORT = 8084;
+        const CONTROL_LED_TOPIC = BASE_TOPIC + "/control/led"; // 【新增】LED 控制主题
 
         let alertHistory = JSON.parse(localStorage.getItem('my_alert_history') || '[]');
+        let isLedOn = false; // 【新增】记录补光灯状态
         
         const container = document.getElementById("history-container");
         const streamImg = document.getElementById("stream-img");
@@ -276,7 +299,7 @@
             } 
             else if (topic.includes("/alert")) {
                 addNewAlert(payload);
-                if (payload.msg && payload.msg.includes("异常")) {
+                if (payload.msg && payload.msg.includes("异常") || payload.msg.includes("火险") || payload.msg.includes("烟雾")) {
                     emergencyText.innerHTML = payload.msg;
                     emergencyBanner.style.display = "block";
                     clearTimeout(emergencyTimeout);
@@ -339,10 +362,39 @@
             }
         }
 
+        // ================= 【新增】控制补光灯状态函数 =================
+        function toggleLED() {
+            const btn = document.getElementById('led-toggle-btn');
+            
+            isLedOn = !isLedOn;
+            
+            if (isLedOn) {
+                btn.innerText = "关闭补光";
+                btn.classList.add("on"); // 添加高亮样式
+                sendMqttCommand("ON");
+            } else {
+                btn.innerText = "开启补光";
+                btn.classList.remove("on"); // 恢复默认样式
+                sendMqttCommand("OFF");
+            }
+        }
+
+        function sendMqttCommand(payload) {
+            try {
+                const message = new Paho.MQTT.Message(payload);
+                message.destinationName = CONTROL_LED_TOPIC;
+                client.send(message);
+            } catch (error) {
+                console.error("发送指令失败: ", error);
+                alert("糟糕，指令发送失败，看看是不是网络断了哦！");
+            }
+        }
+        // ==========================================================
+
         function addNewAlert(data) {
             const timestamp = new Date(data.timestamp * 1000).toLocaleString('zh-CN', {hour12: false});
             const alertText = data.msg || "出现小状况"; 
-            const isEmergency = alertText.includes("异常");
+            const isEmergency = alertText.includes("异常") || alertText.includes("火险") || alertText.includes("烟雾");
             const newRecord = { time: timestamp, img: data.image, msg: alertText, isEmergency: isEmergency, id: Date.now() };
             
             alertHistory.unshift(newRecord);
