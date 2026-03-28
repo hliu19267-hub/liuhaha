@@ -24,7 +24,7 @@
         .dot.active { background-color: #55efc4; animation: bounce 1s infinite alternate; }
         @keyframes bounce { 0% { transform: translateY(0); } 100% { transform: translateY(-4px); } }
 
-        .action-btn { background: #ffeaa7; border: 3px solid #2d3436; color: #2d3436; padding: 8px 18px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 18px; box-shadow: 4px 4px 0px #2d3436; transition: all 0.1s; font-family: inherit; }
+        .action-btn { background: #ffeaa7; border: 3px solid #2d3436; color: #2d3436; padding: 8px 18px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 18px; box-shadow: 4px 4px 0px #2d3436; transition: all 0.1s; font-family: inherit; white-space: nowrap; }
         .action-btn:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px #2d3436; }
 
         .dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 25px; }
@@ -62,12 +62,8 @@
         .sensor-unit { font-size: 16px; }
 
         .history-controls { display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px; }
-        .stats-bar { display: flex; gap: 10px; justify-content: flex-start;}
-        .stat-badge { background: #81ecec; border: 3px solid #2d3436; padding: 5px 12px; border-radius: 15px; font-weight: bold; box-shadow: 3px 3px 0px #2d3436; font-size: 14px;}
-        .stat-badge.danger { background: #fab1a0; }
-
         .search-row { display: flex; gap: 10px; }
-        .search-input { flex-grow: 1; background: #fff; border: 3px solid #2d3436; border-radius: 15px; padding: 10px 15px; font-size: 16px; font-family: inherit; font-weight: bold; box-shadow: inset 2px 2px 5px rgba(0,0,0,0.05);}
+        .search-input { flex-grow: 1; min-width: 0; background: #fff; border: 3px solid #2d3436; border-radius: 15px; padding: 10px 15px; font-size: 16px; font-family: inherit; font-weight: bold; box-shadow: inset 2px 2px 5px rgba(0,0,0,0.05);}
         .history-container { flex-grow: 1; overflow-y: auto; max-height: 480px; padding-right: 10px; }
         .history-item { background: #fff; border: 4px solid #2d3436; border-radius: 18px; margin-bottom: 15px; padding: 15px; box-shadow: 4px 4px 0px #2d3436; position: relative;}
         .history-header { display: flex; flex-direction: column; margin-bottom: 10px;}
@@ -75,6 +71,10 @@
         .history-header-title { color: #2d3436; font-size: 18px; font-weight: 900;}
         .history-img { width: 100%; border: 3px solid #2d3436; border-radius: 12px; background: #dfe6e9;}
         .empty-tip { text-align: center; color: #636e72; font-size: 18px; padding: 40px 0; font-weight: bold;}
+
+        /* 自定义滚动条 */
+        .history-container::-webkit-scrollbar { width: 8px; }
+        .history-container::-webkit-scrollbar-thumb { background-color: #b2bec3; border-radius: 10px; border: 2px solid #fff; }
 
         @media (max-width: 800px) {
             .dashboard { grid-template-columns: 1fr; gap: 20px; }
@@ -153,7 +153,8 @@
                 <div class="section-title">📓 异常事件手帐本 <span>[记录]</span></div>
                 <div class="history-controls">
                     <div class="search-row">
-                        <input type="text" id="search-input" class="search-input" placeholder="🔍 搜一搜 (比如: 烟雾, 溢满)..." oninput="renderHistory()">
+                        <input type="text" id="search-input" class="search-input" placeholder="🔍 搜一搜..." oninput="renderHistory()">
+                        <button class="action-btn" style="background: #55efc4;" onclick="fetchDatabase()">📡 底层档案</button>
                         <button class="action-btn" style="background: #ffadad;" onclick="clearHistory()">🗑️ 清空</button>
                     </div>
                 </div>
@@ -173,7 +174,11 @@
         const BASE_TOPIC = "2428510019ljz";
         const BROKER = "broker.emqx.io";
         const PORT = 8084;
+        
         const CONTROL_LED_TOPIC = BASE_TOPIC + "/control/led"; 
+        // 🆕 注册数据库请求的专属通道
+        const TOPIC_REQ_HISTORY = BASE_TOPIC + "/history/request";
+        const TOPIC_RES_HISTORY = BASE_TOPIC + "/history/response";
 
         let alertHistory = JSON.parse(localStorage.getItem('my_alert_history') || '[]');
         let isLedOn = false; 
@@ -193,6 +198,7 @@
             client.subscribe(BASE_TOPIC + "/stream");
             client.subscribe(BASE_TOPIC + "/alert");
             client.subscribe(BASE_TOPIC + "/sensor"); 
+            client.subscribe(TOPIC_RES_HISTORY); // 🆕 监听树莓派返回的底层数据库数据
         }
 
         function onMessageArrived(message) {
@@ -208,10 +214,13 @@
             else if (topic.includes("/sensor")) {
                 updateSensors(payload);
             }
+            // 🆕 拦截树莓派返回的数据库历史记录
+            else if (topic.includes("/history/response")) {
+                renderDatabaseHistory(payload);
+            }
         }
 
         function updateSensors(data) {
-            // 🎯 【核心逻辑】处理光线环境状态
             if (data.is_dark !== undefined && data.led_on !== undefined) {
                 const elLight = document.getElementById("val-light");
                 const iconLight = document.getElementById("icon-light");
@@ -221,20 +230,19 @@
                     if (data.led_on === 1) {
                         elLight.innerText = "正常 (已补光)";
                         iconLight.innerText = "💡";
-                        cardLight.style.background = "#ffeaa7"; // 温馨的黄色
+                        cardLight.style.background = "#ffeaa7";
                     } else {
                         elLight.innerText = "太暗了！看不清";
                         iconLight.innerText = "🌑";
-                        cardLight.style.background = "#ff7675"; // 红色警告
+                        cardLight.style.background = "#ff7675";
                     }
                 } else {
                     elLight.innerText = "正常 (光线明亮)";
                     iconLight.innerText = "☀️";
-                    cardLight.style.background = "#81ecec"; // 晴朗的蓝绿色
+                    cardLight.style.background = "#81ecec";
                 }
             }
 
-            // 更新温湿度和空气
             if(data.temp !== undefined) document.getElementById("val-temp").innerHTML = data.temp + ' <span class="sensor-unit">°C</span>';
             if(data.humi !== undefined) document.getElementById("val-humi").innerHTML = data.humi + ' <span class="sensor-unit">%</span>';
             if(data.mq2 !== undefined) document.getElementById("val-mq2").innerText = data.mq2;
@@ -270,12 +278,55 @@
             }
         }
 
-        function sendMqttCommand(payload) {
+        function sendMqttCommand(payloadStr) {
             try {
-                const message = new Paho.MQTT.Message(payload);
+                const message = new Paho.MQTT.Message(payloadStr);
                 message.destinationName = CONTROL_LED_TOPIC;
                 client.send(message);
             } catch (error) {}
+        }
+
+        // 🆕 向树莓派发送查询数据库请求的函数
+        function fetchDatabase() {
+            container.innerHTML = '<div class="empty-tip">🚀 正在跨越广域网...<br>呼叫树莓派底层黑匣子！</div>';
+            try {
+                const message = new Paho.MQTT.Message("GET_DB");
+                message.destinationName = TOPIC_REQ_HISTORY;
+                client.send(message);
+            } catch(e) {
+                container.innerHTML = '<div class="empty-tip" style="color:#d63031;">哎呀，网络有点调皮，请稍后再试！</div>';
+            }
+        }
+
+        // 🆕 专门用来渲染底层数据库记录的函数（纯文本路径模式）
+        function renderDatabaseHistory(dbData) {
+            if (!dbData || dbData.length === 0) {
+                container.innerHTML = '<div class="empty-tip">🌸 底层黑匣子里也是空空如也呢 🌸</div>';
+                return;
+            }
+            
+            // 增加一个可爱的返回本地视图的横幅
+            container.innerHTML = '<div style="text-align:center; padding: 12px; background: #ffeaa7; border: 3px solid #2d3436; border-radius: 15px; margin-bottom: 15px; font-weight: 900; color: #d63031; box-shadow: 3px 3px 0px #2d3436;">已切换为：树莓派底层真实数据库记录 🗄️<br><div style="margin-top:5px; font-size:14px; color:#0984e3; cursor:pointer; background:#fff; padding:4px; border-radius:10px; border:2px solid #2d3436; display:inline-block;" onclick="renderHistory()">👉 点击我返回本地手账本</div></div>';
+            
+            dbData.forEach((row) => {
+                const div = document.createElement('div');
+                div.className = "history-item";
+                
+                // 根据报警类型动态分配颜色
+                let textColor = row.alert_type.includes("FIRE") ? "#d63031" : "#e17055";
+                
+                div.innerHTML = `
+                    <div class="history-header">
+                        <span class="history-header-time">🕒 ${row.timestamp}</span>
+                        <span class="history-header-title" style="color: ${textColor}">📌 ${row.alert_type}</span>
+                    </div>
+                    <div style="background: #dfe6e9; padding: 12px; border-radius: 12px; font-size: 14px; font-weight: bold; color: #636e72; border: 2px dashed #b2bec3; display: flex; align-items: flex-start; gap: 8px;">
+                        <span style="font-size: 20px;">📁</span>
+                        <span>现场高清原图已锁入树莓派底层，路径：<br><code style="background:#fff; padding:2px 6px; border-radius:6px; color:#0984e3; display:inline-block; margin-top:5px; border:1px solid #b2bec3;">${row.image_path}</code></span>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
         }
 
         function addNewAlert(data) {
@@ -287,6 +338,7 @@
             renderHistory();
         }
 
+        // 渲染本地缓存（带图片的视图）
         function renderHistory() {
             const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
             const filteredHistory = alertHistory.filter(item => item.msg.toLowerCase().includes(searchTerm) || item.time.includes(searchTerm));
@@ -305,7 +357,11 @@
         }
 
         function clearHistory() {
-            if(confirm('🐾 要把所有的记录都擦掉吗？')) { alertHistory = []; localStorage.removeItem('my_alert_history'); renderHistory(); }
+            if(confirm('🐾 要把本地的所有手账记录都擦掉吗？（底层数据库不会被删除哦）')) { 
+                alertHistory = []; 
+                localStorage.removeItem('my_alert_history'); 
+                renderHistory(); 
+            }
         }
 
         client.onConnectionLost = (e) => { dot.classList.remove("active"); };
